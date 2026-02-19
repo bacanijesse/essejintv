@@ -1,26 +1,30 @@
-fetch('data/rides.json')
-  .then(response => response.json())
-  .then(rides => {
-    const container = document.getElementById('rides-grid');
+// THEME SYSTEM
+const toggleBtn = document.getElementById("themeToggle");
 
-    rides.forEach(ride => {
-      const card = document.createElement('div');
-      card.className = 'card';
+// Load saved theme
+const savedTheme = localStorage.getItem("theme");
+if (savedTheme) {
+  document.documentElement.setAttribute("data-theme", savedTheme);
+  toggleBtn.textContent = savedTheme === "dark" ? "Light" : "Dark";
+} else {
+  // Auto-detect system preference
+  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  if (prefersDark) {
+    document.documentElement.setAttribute("data-theme", "dark");
+    toggleBtn.textContent = "Light";
+  }
+}
 
-      card.innerHTML = `
-        <a href="rides/ride.html?id=${ride.id}">
-          <img src="${ride.cover}" loading="lazy">
-        </a>
-        <div class="card-content">
-          <h2>${ride.title}</h2>
-          <div class="stats">
-            ${ride.distance} km • ${ride.elevation} m<br>
-            ${ride.date}
-          </div>
-        </div>
-      `;
+toggleBtn.addEventListener("click", () => {
+  const currentTheme = document.documentElement.getAttribute("data-theme");
 
-      container.appendChild(card);
-    });
-  });
-
+  if (currentTheme === "dark") {
+    document.documentElement.removeAttribute("data-theme");
+    localStorage.setItem("theme", "light");
+    toggleBtn.textContent = "Dark";
+  } else {
+    document.documentElement.setAttribute("data-theme", "dark");
+    localStorage.setItem("theme", "dark");
+    toggleBtn.textContent = "Light";
+  }
+});
