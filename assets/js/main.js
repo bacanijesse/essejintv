@@ -131,7 +131,14 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     });
 
-    return Array.from(new Set(values));
+    const uniqueValues = Array.from(new Set(values));
+    const gpxOnly = uniqueValues.filter(path => /\.gpx$/i.test(path));
+
+    if (gpxOnly.length > 0) {
+      return gpxOnly;
+    }
+
+    return uniqueValues;
   }
 
   function getPrimaryRideFilePath(ride) {
@@ -270,7 +277,11 @@ document.addEventListener("DOMContentLoaded", function () {
       });
 
       groupedByActivity.forEach((files, groupKey) => {
-        discoveredRides.push(createAutoDiscoveredRide(folderName, groupKey, files.sort(), generatedId));
+        const sortedFiles = files.sort();
+        const gpxFiles = sortedFiles.filter(filePath => /\.gpx$/i.test(filePath));
+        const selectedFiles = gpxFiles.length > 0 ? gpxFiles : sortedFiles;
+
+        discoveredRides.push(createAutoDiscoveredRide(folderName, groupKey, selectedFiles, generatedId));
         generatedId += 1;
       });
     }
