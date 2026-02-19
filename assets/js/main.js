@@ -49,13 +49,4 @@ if (!toggleBtn || !icon) {
       localStorage.setItem("theme", "light");
       icon.textContent = "🌙";
     } else {
-      document.documentElement.setAttribute("data-theme", "dark");
-      localStorage.setItem("theme", "dark");
-      icon.textContent = "☀️";
-    }
-  });
-
-}
-
-
-}
+      document.documentElement.setAttribute("data
