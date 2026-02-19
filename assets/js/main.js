@@ -32,8 +32,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
   toggleBtn.addEventListener("click", function () {
     const current = document.documentElement.getAttribute("data-theme");
+const toggleBtn = document.getElementById("themeToggle");
+const icon = document.getElementById("themeIcon");
 
-    if (current === "dark") {
+toggleBtn.addEventListener("click", function () {
+  const current = document.documentElement.getAttribute("data-theme");
+
+  if (current === "dark") {
     document.documentElement.removeAttribute("data-theme");
     localStorage.setItem("theme", "light");
     icon.textContent = "🌙";
@@ -42,6 +47,5 @@ document.addEventListener("DOMContentLoaded", function () {
     localStorage.setItem("theme", "dark");
     icon.textContent = "☀️";
   }
-  });
-
 });
+
