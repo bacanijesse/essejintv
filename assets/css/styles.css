@@ -8,7 +8,7 @@
   --section-line: #111111;
   --header-chip-bg: rgba(255, 255, 255, 0.72);
   --header-divider: rgba(17, 17, 17, 0.9);
-  --parallax-image: url("assets/images/bg.webp");
+  --parallax-image: url("../images/bg.webp");
   --bg-overlay: rgba(240, 242, 245, 0.78);
 }
 
