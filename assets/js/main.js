@@ -149,6 +149,128 @@ document.addEventListener("DOMContentLoaded", function () {
     return extensionMatch ? extensionMatch[1].toLowerCase() : "";
   }
 
+  function normalizeActivityKey(fileName) {
+    if (typeof fileName !== "string" || !fileName.trim()) {
+      return "activity";
+    }
+
+    const numericMatch = fileName.match(/(\d{6,})/);
+    if (numericMatch) {
+      return numericMatch[1];
+    }
+
+    return fileName
+      .replace(/\.(gpx|tcx|kml|fit|csv)$/i, "")
+      .replace(/[^a-z0-9]+/gi, "_")
+      .replace(/^_+|_+$/g, "")
+      .toLowerCase() || "activity";
+  }
+
+  function parseFolderDate(folderName) {
+    const folderMatch = typeof folderName === "string"
+      ? folderName.match(/^(\d{2})_(\d{2})_(\d{4})/)
+      : null;
+
+    if (!folderMatch) {
+      return null;
+    }
+
+    const [, month, day, year] = folderMatch;
+    return `${year}-${month}-${day}`;
+  }
+
+  function extractDirectoryLinksFromHtml(htmlText) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlText, "text/html");
+    const anchors = Array.from(doc.querySelectorAll("a[href]"));
+
+    return anchors
+      .map(anchor => (anchor.getAttribute("href") || "").trim())
+      .filter(href => href && href !== "../");
+  }
+
+  async function fetchDirectoryListing(pathPrefix) {
+    const response = await fetch(pathPrefix, { cache: "no-store" });
+
+    if (!response.ok) {
+      throw new Error(`Unable to list directory: ${pathPrefix}`);
+    }
+
+    const htmlText = await response.text();
+    return extractDirectoryLinksFromHtml(htmlText);
+  }
+
+  function createAutoDiscoveredRide(folderName, groupKey, filePaths, idValue) {
+    const discoveredDate = parseFolderDate(folderName) || "2026-02-18";
+
+    return {
+      id: idValue,
+      country: "Taiwan",
+      cover: "https://placehold.co/600x220?text=Auto+Discovered+Ride",
+      thumbnail: "https://placehold.co/600x220?text=Auto+Discovered+Ride",
+      title: `Ride ${groupKey}`,
+      date: discoveredDate,
+      distance: 0,
+      elevation: 0,
+      description: `Auto-discovered ride from folder ${folderName}`,
+      dataFiles: filePaths,
+      youtubeUrl: "https://www.youtube.com/results?search_query=cycling+ride+taiwan",
+      photos: [],
+      tags: ["auto", "merged", "imported"],
+    };
+  }
+
+  async function discoverRidesFromGpxFolders() {
+    const folderLinks = await fetchDirectoryListing("gpx/");
+    const folderNames = folderLinks
+      .filter(href => href.endsWith("/"))
+      .map(href => href.replace(/\/+$/, ""))
+      .filter(name => name && name !== "." && name !== "..");
+
+    const discoveredRides = [];
+    let generatedId = 1;
+
+    for (const folderName of folderNames) {
+      let entryLinks = [];
+
+      try {
+        entryLinks = await fetchDirectoryListing(`gpx/${folderName}/`);
+      } catch (error) {
+        console.warn("Skipping folder discovery due to listing error:", folderName, error);
+        continue;
+      }
+
+      const activityFiles = entryLinks
+        .filter(name => /\.(gpx|tcx|kml|fit|csv)$/i.test(name))
+        .map(name => `gpx/${folderName}/${name.replace(/^\/+/, "")}`);
+
+      if (activityFiles.length === 0) {
+        continue;
+      }
+
+      const groupedByActivity = new Map();
+
+      activityFiles.forEach(filePath => {
+        const parts = filePath.split("/");
+        const fileName = parts[parts.length - 1] || "";
+        const key = normalizeActivityKey(fileName);
+
+        if (!groupedByActivity.has(key)) {
+          groupedByActivity.set(key, []);
+        }
+
+        groupedByActivity.get(key).push(filePath);
+      });
+
+      groupedByActivity.forEach((files, groupKey) => {
+        discoveredRides.push(createAutoDiscoveredRide(folderName, groupKey, files.sort(), generatedId));
+        generatedId += 1;
+      });
+    }
+
+    return discoveredRides;
+  }
+
   function setContactFocusMode(isContactMode) {
     Object.entries(sectionMap).forEach(([sectionKey, sectionNode]) => {
       if (!sectionNode) {
@@ -1451,6 +1573,17 @@ document.addEventListener("DOMContentLoaded", function () {
       if (Number.isFinite(avgTemperature)) {
         ride.airTemperature = Number(avgTemperature.toFixed(1));
       }
+
+      const distanceRange = getMinMax(metrics.distance);
+      if (distanceRange && Number.isFinite(distanceRange.max) && (!Number.isFinite(Number.parseFloat(ride.distance)) || Number.parseFloat(ride.distance) <= 0)) {
+        ride.distance = Number(distanceRange.max.toFixed(2));
+      }
+
+      const elevationRange = getMinMax(metrics.elevation);
+      if (elevationRange && Number.isFinite(elevationRange.min) && Number.isFinite(elevationRange.max) && (!Number.isFinite(Number.parseFloat(ride.elevation)) || Number.parseFloat(ride.elevation) <= 0)) {
+        const elevationGain = Math.max(0, elevationRange.max - elevationRange.min);
+        ride.elevation = Math.round(elevationGain);
+      }
     });
   }
 
@@ -1909,13 +2042,29 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   /* ===== LOAD RIDES ===== */
-  fetch("data/rides.json")
-    .then(res => {
-      if (!res.ok) {
-        throw new Error("Failed to load rides.json");
-      }
-      return res.json();
-    })
+  async function loadRidesData() {
+    let discoveredRides = [];
+
+    try {
+      discoveredRides = await discoverRidesFromGpxFolders();
+    } catch (error) {
+      console.warn("Auto-discovery skipped:", error);
+    }
+
+    if (discoveredRides.length > 0) {
+      return discoveredRides;
+    }
+
+    const response = await fetch("data/rides.json");
+    if (!response.ok) {
+      throw new Error("Failed to load rides.json");
+    }
+
+    const rides = await response.json();
+    return Array.isArray(rides) ? rides : [];
+  }
+
+  loadRidesData()
     .then(async rides => {
       allRides = Array.isArray(rides) ? rides : [];
       await enrichRideCountries(allRides);
