@@ -57,12 +57,14 @@ h1 {
 
 .top-menu {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
+  align-items: center;
   gap: 1rem;
   margin-top: 0.9rem;
 }
 
-.top-menu a {
+.menu-link {
   color: var(--text);
   text-decoration: none;
   border: 1px solid var(--card-border);
@@ -71,17 +73,54 @@ h1 {
   padding: 0.4rem 0.85rem;
   font-size: 0.92rem;
   transition: transform 0.15s ease, border-color 0.2s ease;
+  cursor: pointer;
+  list-style: none;
 }
 
-.top-menu a:hover {
+.menu-link:hover {
   transform: translateY(-1px);
   border-color: var(--accent);
+}
+
+.country-menu {
+  position: relative;
+}
+
+.country-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.country-options {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 170px;
+  padding: 0.55rem;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  box-shadow: 0 8px 20px var(--shadow);
+  z-index: 20;
+}
+
+.country-options .menu-btn {
+  width: 100%;
+  text-align: left;
 }
 
 main {
   max-width: 1100px;
   margin: 0 auto;
   padding: 1rem;
+}
+
+.ad-section {
+  margin: 0.9rem 0 1.1rem;
+  min-height: 90px;
 }
 
 .rides-menu {
@@ -118,6 +157,35 @@ main {
   gap: 1.5rem;
 }
 
+.pagination {
+  margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.page-btn {
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 0.32rem 0.7rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.page-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.page-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .card {
   background: var(--card-bg);
   border-radius: 12px;
@@ -147,6 +215,29 @@ main {
   font-size: 0.9rem;
   opacity: 0.7;
   line-height: 1.6;
+}
+
+.card-meta {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.youtube-link {
+  margin-left: auto;
+  white-space: nowrap;
+  text-decoration: none;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.78rem;
+}
+
+.youtube-link:hover {
+  border-color: var(--accent);
 }
 
 .card-metrics-icon {
@@ -317,6 +408,67 @@ main {
   width: 34px;
   height: 34px;
   cursor: pointer;
+}
+
+.video-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: var(--bg-overlay);
+  z-index: 1001;
+}
+
+.video-modal-backdrop[hidden] {
+  display: none !important;
+}
+
+.video-modal {
+  width: min(920px, 96vw);
+  background: var(--card-bg);
+  color: var(--text);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px var(--shadow);
+  padding: 0.9rem;
+}
+
+.video-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.7rem;
+}
+
+.video-modal-header h2 {
+  font-size: 1rem;
+  color: var(--accent);
+}
+
+.video-close-btn {
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  color: var(--text);
+  border-radius: 999px;
+  width: 34px;
+  height: 34px;
+  cursor: pointer;
+}
+
+.video-frame-wrap {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--card-border);
+}
+
+.video-frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
 }
 
 html.modal-open,

@@ -3,9 +3,15 @@ document.addEventListener("DOMContentLoaded", function () {
   let selectedCountry = "all";
   const gpxMetricsCache = new Map();
   let metricsModal = null;
+  let videoModal = null;
 
   const container = document.getElementById("rides-grid");
+  const paginationContainer = document.getElementById("rides-pagination");
+  const ridesPerPage = 9;
+  let currentPage = 1;
   const menuButtons = document.querySelectorAll(".menu-btn");
+  const countryMenu = document.querySelector(".country-menu");
+  let countryMenuCloseTimer = null;
   const uploadedGraphSection = document.getElementById("uploaded-graph-section");
   const uploadedGraphCanvas = document.getElementById("uploadedGraphCanvas");
   const uploadedGraphStatus = document.getElementById("uploadedGraphStatus");
@@ -82,6 +88,146 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     return ride.title || "Ride";
+  }
+
+  function extractYouTubeVideoId(urlValue) {
+    if (typeof urlValue !== "string" || !urlValue.trim()) {
+      return null;
+    }
+
+    try {
+      const parsedUrl = new URL(urlValue);
+      const host = parsedUrl.hostname.replace(/^www\./, "");
+
+      if (host === "youtu.be") {
+        return parsedUrl.pathname.split("/").filter(Boolean)[0] || null;
+      }
+
+      if (host.endsWith("youtube.com")) {
+        const watchId = parsedUrl.searchParams.get("v");
+        if (watchId) {
+          return watchId;
+        }
+
+        const pathParts = parsedUrl.pathname.split("/").filter(Boolean);
+        if (pathParts[0] === "shorts" && pathParts[1]) {
+          return pathParts[1];
+        }
+
+        if (pathParts[0] === "embed" && pathParts[1]) {
+          return pathParts[1];
+        }
+      }
+    } catch (error) {
+      return null;
+    }
+
+    return null;
+  }
+
+  function isMobileView() {
+    return window.matchMedia("(max-width: 900px)").matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent || "");
+  }
+
+  function ensureVideoModal() {
+    if (videoModal) {
+      return videoModal;
+    }
+
+    const backdrop = document.createElement("div");
+    backdrop.className = "video-modal-backdrop";
+    backdrop.hidden = true;
+    backdrop.innerHTML = `
+      <div class="video-modal" role="dialog" aria-modal="true" aria-labelledby="videoModalTitle">
+        <div class="video-modal-header">
+          <h2 id="videoModalTitle">Ride Video</h2>
+          <button class="video-close-btn" type="button" aria-label="Close video modal">✕</button>
+        </div>
+        <div class="video-frame-wrap">
+          <iframe class="video-frame" src="" title="Ride video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+        </div>
+      </div>
+    `;
+
+    const closeButton = backdrop.querySelector(".video-close-btn");
+    const modalPanel = backdrop.querySelector(".video-modal");
+    const frame = backdrop.querySelector(".video-frame");
+    const titleNode = backdrop.querySelector("#videoModalTitle");
+
+    function closeVideoModal() {
+      backdrop.hidden = true;
+      if (frame) {
+        frame.src = "";
+      }
+      document.documentElement.classList.remove("modal-open");
+      document.body.classList.remove("modal-open");
+    }
+
+    if (modalPanel) {
+      modalPanel.addEventListener("click", function (event) {
+        event.stopPropagation();
+      });
+    }
+
+    if (closeButton) {
+      closeButton.addEventListener("click", function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        closeVideoModal();
+      });
+    }
+
+    backdrop.addEventListener("click", function (event) {
+      if (event.target === backdrop) {
+        closeVideoModal();
+      }
+    });
+
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && !backdrop.hidden) {
+        closeVideoModal();
+      }
+    });
+
+    document.body.appendChild(backdrop);
+
+    videoModal = {
+      backdrop,
+      frame,
+      titleNode,
+      closeVideoModal,
+    };
+
+    return videoModal;
+  }
+
+  function openRideVideo(ride, youtubeUrl) {
+    if (isMobileView()) {
+      window.open(youtubeUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    const videoId = extractYouTubeVideoId(youtubeUrl);
+
+    if (!videoId) {
+      window.open(youtubeUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    const modal = ensureVideoModal();
+    const embedUrl = `https://www.youtube.com/embed/${encodeURIComponent(videoId)}?autoplay=1&rel=0`;
+
+    if (modal.titleNode) {
+      modal.titleNode.textContent = `${getRideDisplayName(ride)} Video`;
+    }
+
+    if (modal.frame) {
+      modal.frame.src = embedUrl;
+    }
+
+    modal.backdrop.hidden = false;
+    document.documentElement.classList.add("modal-open");
+    document.body.classList.add("modal-open");
   }
 
   function parseGpxMetrics(gpxText) {
@@ -940,17 +1086,41 @@ document.addEventListener("DOMContentLoaded", function () {
     card.className = "card";
     card.setAttribute("role", "button");
     card.tabIndex = 0;
+    const youtubeUrl = typeof ride.youtubeUrl === "string" && ride.youtubeUrl.trim()
+      ? ride.youtubeUrl.trim()
+      : `https://www.youtube.com/results?search_query=${encodeURIComponent(`${ride.title || "ride"} cycling`)}`;
 
     card.innerHTML = `
       ${(ride.thumbnail || ride.cover) ? `<img class="card-thumbnail" src="${ride.thumbnail || ride.cover}" loading="lazy" alt="${ride.title}">` : ''}
       <div class="card-content">
         <h2>${getCountryFlag(ride.country)} ${getRideDisplayName(ride)} <span class="card-metrics-icon" aria-hidden="true">📈</span></h2>
-        <div class="stats">
-          ${ride.distance} km • ${ride.elevation} m<br>
-          ${ride.date}
+        <div class="card-meta">
+          <div class="stats">
+            ${ride.distance} km • ${ride.elevation} m<br>
+            ${ride.date}
+          </div>
+          <a class="youtube-link" href="${youtubeUrl}" target="_blank" rel="noopener noreferrer" aria-label="Watch ride video on YouTube">▶ YouTube</a>
         </div>
       </div>
     `;
+
+    const youtubeLink = card.querySelector(".youtube-link");
+
+    if (youtubeLink) {
+      youtubeLink.addEventListener("click", function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        openRideVideo(ride, youtubeUrl);
+      });
+
+      youtubeLink.addEventListener("keydown", function (event) {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openRideVideo(ride, youtubeUrl);
+        }
+        event.stopPropagation();
+      });
+    }
 
     card.addEventListener("click", function () {
       openMetricsModal(ride);
@@ -977,25 +1147,110 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (filteredRides.length === 0) {
       container.innerHTML = `<p class="error-message">No rides found for this location yet.</p>`;
+      if (paginationContainer) {
+        paginationContainer.innerHTML = "";
+      }
       return;
     }
 
-    filteredRides.forEach(ride => {
+    const totalPages = Math.max(1, Math.ceil(filteredRides.length / ridesPerPage));
+
+    if (currentPage > totalPages) {
+      currentPage = totalPages;
+    }
+
+    const startIndex = (currentPage - 1) * ridesPerPage;
+    const ridesOnPage = filteredRides.slice(startIndex, startIndex + ridesPerPage);
+
+    ridesOnPage.forEach(ride => {
       container.appendChild(createRideCard(ride));
     });
+
+    if (paginationContainer) {
+      if (totalPages <= 1) {
+        paginationContainer.innerHTML = "";
+      } else {
+        paginationContainer.innerHTML = "";
+
+        const prevButton = document.createElement("button");
+        prevButton.className = "page-btn";
+        prevButton.type = "button";
+        prevButton.textContent = "Prev";
+        prevButton.disabled = currentPage === 1;
+        prevButton.addEventListener("click", function () {
+          if (currentPage > 1) {
+            currentPage -= 1;
+            renderRides();
+          }
+        });
+        paginationContainer.appendChild(prevButton);
+
+        for (let page = 1; page <= totalPages; page += 1) {
+          const pageButton = document.createElement("button");
+          pageButton.className = "page-btn";
+          pageButton.type = "button";
+          pageButton.textContent = String(page);
+
+          if (page === currentPage) {
+            pageButton.classList.add("active");
+          }
+
+          pageButton.addEventListener("click", function () {
+            currentPage = page;
+            renderRides();
+          });
+
+          paginationContainer.appendChild(pageButton);
+        }
+
+        const nextButton = document.createElement("button");
+        nextButton.className = "page-btn";
+        nextButton.type = "button";
+        nextButton.textContent = "Next";
+        nextButton.disabled = currentPage === totalPages;
+        nextButton.addEventListener("click", function () {
+          if (currentPage < totalPages) {
+            currentPage += 1;
+            renderRides();
+          }
+        });
+        paginationContainer.appendChild(nextButton);
+      }
+    }
   }
 
   menuButtons.forEach(button => {
     button.addEventListener("click", function () {
       selectedCountry = this.dataset.country || "all";
+      currentPage = 1;
 
       menuButtons.forEach(btn => btn.classList.remove("active"));
       this.classList.add("active");
 
       renderRides();
       renderUploadedGraph();
+
+      if (container) {
+        container.scrollIntoView({ behavior: "auto", block: "start" });
+      }
     });
   });
+
+  if (countryMenu) {
+    countryMenu.addEventListener("mouseenter", function () {
+      if (countryMenuCloseTimer) {
+        clearTimeout(countryMenuCloseTimer);
+        countryMenuCloseTimer = null;
+      }
+    });
+
+    countryMenu.addEventListener("mouseleave", function () {
+      countryMenuCloseTimer = setTimeout(function () {
+        countryMenu.removeAttribute("open");
+        countryMenuCloseTimer = null;
+      }, 180);
+    });
+  }
 
   summaryButtons.forEach(button => {
     button.addEventListener("click", function () {
