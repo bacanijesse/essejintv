@@ -4,6 +4,7 @@
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>🚴 essejintv - Cycling's Adventures</title>
+	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 	<link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body>
@@ -17,9 +18,26 @@
 	<main>
 		<nav class="rides-menu" aria-label="Ride locations">
 			<button class="menu-btn active" data-country="all" type="button">All</button>
-			<button class="menu-btn" data-country="taiwan" type="button">Taiwan</button>
-			<button class="menu-btn" data-country="philippines" type="button">Philippines</button>
+			<button class="menu-btn" data-country="taiwan" type="button" aria-label="Taiwan">🇹🇼</button>
+			<button class="menu-btn" data-country="philippines" type="button" aria-label="Philippines">🇵🇭</button>
 		</nav>
+
+		<section id="uploaded-graph-section" class="info-section" aria-label="Uploaded GPX graph">
+			<h2>Cycling Summary</h2>
+			<div class="summary-controls" aria-label="Summary period controls">
+				<button class="summary-btn active" data-period="weekly" type="button">Weekly</button>
+				<button class="summary-btn" data-period="monthly" type="button">Monthly</button>
+				<button class="summary-btn" data-period="half" type="button">Half-Yearly</button>
+				<button class="summary-btn" data-period="yearly" type="button">Yearly</button>
+			</div>
+			<canvas id="uploadedGraphCanvas" class="metrics-canvas" width="860" height="340" aria-label="Cycling summary chart"></canvas>
+			<div class="metrics-legend">
+				<button class="legend-item legend-elevation" data-metric="elevation" type="button">Elevation: --</button>
+				<button class="legend-item legend-speed" data-metric="speed" type="button">Speed: --</button>
+				<button class="legend-item legend-heart-rate" data-metric="heart-rate" type="button">Heart Rate: --</button>
+			</div>
+			<p id="uploadedGraphStatus" class="metrics-status" aria-live="polite"></p>
+		</section>
 
 		<div id="rides-grid" class="rides-grid"></div>
 	</main>
@@ -28,6 +46,7 @@
 		<p>&copy; 2026 Jesse's Cycling Adventures. All rights reserved.</p>
 	</footer>
 
+	<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 	<script src="assets/js/main.js"></script>
 </body>
 </html>

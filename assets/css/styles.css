@@ -158,7 +158,11 @@ main {
   width: 100%;
   height: auto;
   border-radius: 8px;
-  background: rgba(128, 128, 128, 0.06);
+  background: transparent;
+}
+
+#uploadedGraphCanvas {
+  background: transparent !important;
 }
 
 .metrics-legend {
@@ -173,6 +177,15 @@ main {
   padding: 0.16rem 0.42rem;
   border-radius: 999px;
   border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  cursor: pointer;
+  transition: opacity 0.15s ease, filter 0.15s ease;
+}
+
+.legend-item.legend-off {
+  color: #8e8e8e;
+  opacity: 0.7;
+  filter: grayscale(1);
 }
 
 .legend-elevation {
@@ -193,6 +206,52 @@ main {
   opacity: 0.75;
 }
 
+.summary-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0.25rem 0 0.75rem;
+}
+
+.summary-btn {
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.summary-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+#uploaded-graph-section {
+  margin-bottom: 1.25rem;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+#uploaded-graph-section .metrics-legend {
+  justify-content: center;
+  font-size: 1rem;
+  margin-top: 0.8rem;
+}
+
+#uploaded-graph-section .legend-item {
+  padding: 0.28rem 0.66rem;
+}
+
+#uploadedGraphStatus {
+  text-align: center;
+  font-size: 1rem;
+  margin-top: 0.6rem;
+}
+
 .metrics-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -202,6 +261,10 @@ main {
   padding: 1rem;
   background: var(--bg-overlay);
   z-index: 1000;
+}
+
+.metrics-modal-backdrop[hidden] {
+  display: none !important;
 }
 
 .metrics-modal {
@@ -228,6 +291,24 @@ main {
   color: var(--accent);
 }
 
+.metrics-modal .metrics-legend {
+  justify-content: center;
+  font-size: 0.95rem;
+  margin-top: 0.75rem;
+}
+
+.metrics-modal .legend-item {
+  padding: 0.26rem 0.62rem;
+}
+
+.metrics-map {
+  width: 100%;
+  height: 220px;
+  border-radius: 8px;
+  margin-top: 0.8rem;
+  border: 1px solid var(--card-border);
+}
+
 .metrics-close-btn {
   border: 1px solid var(--card-border);
   background: var(--card-bg);
@@ -238,6 +319,7 @@ main {
   cursor: pointer;
 }
 
+html.modal-open,
 body.modal-open {
   overflow: hidden;
 }
@@ -277,9 +359,9 @@ footer {
   transform: scale(1.1);
 }
 
-.card img {
+.card-thumbnail {
   width: 100%;
-  height: 220px;
+  height: 140px;
   object-fit: cover;
   display: block;
 }
