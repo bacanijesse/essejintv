@@ -17,8 +17,8 @@ document.addEventListener("DOMContentLoaded", function () {
         card.className = "card";
 
         card.innerHTML = `
-          <a href="rides/ride.html?id=${ride.id}">
-            <img src="${ride.cover}" loading="lazy" alt="${ride.title}">
+          <a href="rides/ride.html?id=${ride.id || ''}">
+            ${ride.cover ? `<img src="${ride.cover}" loading="lazy" alt="${ride.title}">` : ''}
           </a>
           <div class="card-content">
             <h2>${ride.title}</h2>
@@ -34,6 +34,10 @@ document.addEventListener("DOMContentLoaded", function () {
     })
     .catch(err => {
       console.error("Ride loading error:", err);
+      const container = document.getElementById("rides-grid");
+      if (container) {
+        container.innerHTML = `<p class="error-message">Failed to load rides. Please try again later.</p>`;
+      }
     });
 
   /* ===== THEME SYSTEM ===== */
