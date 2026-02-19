@@ -1,10 +1,15 @@
 document.addEventListener("DOMContentLoaded", function () {
 
-  // LOAD RIDES
+  /* =========================
+     LOAD RIDES FROM JSON
+  ========================== */
+
   fetch("./data/rides.json")
     .then(response => response.json())
     .then(rides => {
       const container = document.getElementById("rides-grid");
+
+      if (!container) return;
 
       rides.forEach(ride => {
         const card = document.createElement("div");
@@ -25,27 +30,44 @@ document.addEventListener("DOMContentLoaded", function () {
 
         container.appendChild(card);
       });
+    })
+    .catch(error => {
+      console.error("Error loading rides:", error);
     });
 
-  // THEME TOGGLE
-  const toggleBtn = document.getElementById("themeToggle");
 
+  /* =========================
+     THEME TOGGLE SYSTEM
+  ========================== */
+
+  const toggleBtn = document.getElementById("themeToggle");
+  const icon = document.getElementById("themeIcon");
+
+  if (!toggleBtn || !icon) return;
+
+  // Load saved theme
+  const savedTheme = localStorage.getItem("theme");
+
+  if (savedTheme === "dark") {
+    document.documentElement.setAttribute("data-theme", "dark");
+    icon.textContent = "☀️";
+  } else {
+    icon.textContent = "🌙";
+  }
+
+  // Toggle click
   toggleBtn.addEventListener("click", function () {
     const current = document.documentElement.getAttribute("data-theme");
-const toggleBtn = document.getElementById("themeToggle");
-const icon = document.getElementById("themeIcon");
 
-toggleBtn.addEventListener("click", function () {
-  const current = document.documentElement.getAttribute("data-theme");
+    if (current === "dark") {
+      document.documentElement.removeAttribute("data-theme");
+      localStorage.setItem("theme", "light");
+      icon.textContent = "🌙";
+    } else {
+      document.documentElement.setAttribute("data-theme", "dark");
+      localStorage.setItem("theme", "dark");
+      icon.textContent = "☀️";
+    }
+  });
 
-  if (current === "dark") {
-    document.documentElement.removeAttribute("data-theme");
-    localStorage.setItem("theme", "light");
-    icon.textContent = "🌙";
-  } else {
-    document.documentElement.setAttribute("data-theme", "dark");
-    localStorage.setItem("theme", "dark");
-    icon.textContent = "☀️";
-  }
 });
-
