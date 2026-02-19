@@ -1,36 +1,12 @@
-// LOAD RIDES
-fetch("data/rides.json")
-  .then(res => res.json())
-  .then(rides => {
-    const container = document.getElementById("rides-grid");
-    if (!container) return;
+document.addEventListener("DOMContentLoaded", function () {
 
-    rides.forEach(ride => {
-      const card = document.createElement("div");
-      card.className = "card";
+  const toggleBtn = document.getElementById("themeToggle");
+  const icon = document.getElementById("themeIcon");
 
-      card.innerHTML = `
-        <a href="rides/ride.html?id=${ride.id}">
-          <img src="${ride.cover}" loading="lazy">
-        </a>
-        <div class="card-content">
-          <h2>${ride.title}</h2>
-          <div class="stats">
-            ${ride.distance} km • ${ride.elevation} m<br>
-            ${ride.date}
-          </div>
-        </div>
-      `;
-
-      container.appendChild(card);
-    });
-  });
-
-// THEME SYSTEM
-const toggleBtn = document.getElementById("themeToggle");
-const icon = document.getElementById("themeIcon");
-
-if (toggleBtn && icon) {
+  if (!toggleBtn || !icon) {
+    console.warn("Theme toggle not found.");
+    return;
+  }
 
   const savedTheme = localStorage.getItem("theme");
 
@@ -53,4 +29,4 @@ if (toggleBtn && icon) {
     }
   });
 
-}
+});
