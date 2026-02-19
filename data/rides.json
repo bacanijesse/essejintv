@@ -1,1 +1,38 @@
-[  {    "title": "Morning Ride",    "date": "2026-02-10",    "distance": 15.5,    "elevation": 200,    "description": "A beautiful morning ride through the countryside.",    "gpxFile": "rides/morning-ride.gpx",    "photos": [      "photos/morning-ride1.jpg",      "photos/morning-ride2.jpg"    ],    "tags": [      "morning",      "countryside",      "fun"    ]  },  {    "title": "Evening Challenge",    "date": "2026-02-15",    "distance": 25.0,    "elevation": 500,    "description": "Challenging evening ride with great views.",    "gpxFile": "rides/evening-challenge.gpx",    "photos": [      "photos/evening-challenge1.jpg",      "photos/evening-challenge2.jpg"    ],    "tags": [      "evening",      "challenge",      "views"    ]  },  {    "title": "Weekend Adventure",    "date": "2026-02-18",    "distance": 30.0,    "elevation": 300,    "description": "A fun weekend ride with friends.",    "gpxFile": "rides/weekend-adventure.gpx",    "photos": [      "photos/weekend-adventure1.jpg",      "photos/weekend-adventure2.jpg"    ],    "tags": [      "weekend",      "friends",      "fun"    ]  }]
+[
+  {
+    "id": 1,
+    "cover": "https://placehold.co/600x220?text=Morning+Ride",
+    "title": "Morning Ride",
+    "date": "2026-02-10",
+    "distance": 15.5,
+    "elevation": 200,
+    "description": "A beautiful morning ride through the countryside.",
+    "gpxFile": "rides/morning-ride.gpx",
+    "photos": ["photos/morning-ride1.jpg", "photos/morning-ride2.jpg"],
+    "tags": ["morning", "countryside", "fun"]
+  },
+  {
+    "id": 2,
+    "cover": "https://placehold.co/600x220?text=Evening+Challenge",
+    "title": "Evening Challenge",
+    "date": "2026-02-15",
+    "distance": 25.0,
+    "elevation": 500,
+    "description": "Challenging evening ride with great views.",
+    "gpxFile": "rides/evening-challenge.gpx",
+    "photos": ["photos/evening-challenge1.jpg", "photos/evening-challenge2.jpg"],
+    "tags": ["evening", "challenge", "views"]
+  },
+  {
+    "id": 3,
+    "cover": "https://placehold.co/600x220?text=Weekend+Adventure",
+    "title": "Weekend Adventure",
+    "date": "2026-02-18",
+    "distance": 30.0,
+    "elevation": 300,
+    "description": "A fun weekend ride with friends.",
+    "gpxFile": "rides/weekend-adventure.gpx",
+    "photos": ["photos/weekend-adventure1.jpg", "photos/weekend-adventure2.jpg"],
+    "tags": ["weekend", "friends", "fun"]
+  }
+]
