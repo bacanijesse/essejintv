@@ -6,6 +6,8 @@
   --shadow: rgba(0,0,0,0.08);
   --accent: #4361ee;
   --section-line: #111111;
+  --header-chip-bg: rgba(255, 255, 255, 0.72);
+  --header-divider: rgba(17, 17, 17, 0.9);
   --parallax-image: url("https://images.unsplash.com/photo-1541625602330-2277a4c46182?auto=format&fit=crop&w=2000&q=80");
   --bg-overlay: rgba(240, 242, 245, 0.78);
 }
@@ -18,6 +20,8 @@
   --shadow: rgba(0,0,0,0.3);
   --accent: #4cc9f0;
   --section-line: #ffffff;
+  --header-chip-bg: rgba(22, 33, 62, 0.7);
+  --header-divider: rgba(255, 255, 255, 0.92);
   --bg-overlay: rgba(26, 26, 46, 0.82);
 }
 
@@ -36,6 +40,8 @@ body {
   background-position: center top;
   background-attachment: fixed;
   color: var(--text);
+  line-height: 1.55;
+  letter-spacing: 0.01em;
   min-height: 100vh;
   transition: background-color 0.3s ease;
 }
@@ -49,7 +55,26 @@ body {
 header {
   position: relative;
   text-align: center;
-  padding: 2rem 1rem;
+  max-width: 1100px;
+  margin: 0.8rem auto 0;
+  padding: 1rem 1rem 0.85rem;
+  background: transparent;
+  border: none;
+  border-radius: 14px;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+header::after {
+  content: "";
+  display: block;
+  width: min(240px, 42vw);
+  height: 2px;
+  margin: 0.35rem auto 0;
+  border-radius: 999px;
+  background: var(--header-divider);
+  opacity: 0.9;
 }
 
 h1 {
@@ -61,17 +86,28 @@ h1 {
   display: flex;
   justify-content: center;
   align-items: center;
+  margin-bottom: 0.15rem;
 }
 
 .site-logo {
-  height: 110px;
+  height: 124px;
+  max-width: min(460px, 88vw);
   width: auto;
   display: block;
+  filter: drop-shadow(0 4px 10px var(--shadow));
+}
+
+.site-logo-fallback {
+  font-size: clamp(1.4rem, 3.2vw, 2.2rem);
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.03em;
+  line-height: 1.1;
 }
 
 @media (max-width: 900px) {
   .site-logo {
-    height: 64px;
+    height: 80px;
   }
 }
 
@@ -80,18 +116,20 @@ h1 {
   flex-wrap: wrap;
   justify-content: center;
   align-items: center;
-  gap: 1rem;
-  margin-top: 0.9rem;
+  gap: 0.75rem;
+  margin-top: 0.55rem;
+  padding-top: 0.45rem;
 }
 
 .menu-link {
   color: var(--text);
   text-decoration: none;
   border: 1px solid var(--card-border);
-  background: var(--card-bg);
+  background: var(--header-chip-bg);
   border-radius: 999px;
-  padding: 0.4rem 0.85rem;
-  font-size: 0.92rem;
+  padding: 0.38rem 0.78rem;
+  font-size: 0.89rem;
+  font-weight: 500;
   transition: transform 0.15s ease, border-color 0.2s ease;
   cursor: pointer;
   list-style: none;
@@ -100,6 +138,13 @@ h1 {
 .menu-link:hover {
   transform: translateY(-1px);
   border-color: var(--accent);
+  box-shadow: 0 4px 12px var(--shadow);
+}
+
+.menu-link.active,
+.country-menu[open] > .menu-link {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .country-menu {
@@ -120,7 +165,7 @@ h1 {
   gap: 0.45rem;
   min-width: 170px;
   padding: 0.55rem;
-  background: var(--card-bg);
+  background: var(--header-chip-bg);
   border: 1px solid var(--card-border);
   border-radius: 10px;
   box-shadow: 0 8px 20px var(--shadow);
@@ -135,15 +180,13 @@ h1 {
 main {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 1rem;
+  padding: 0.45rem 1rem 1rem;
 }
 
 .page-section {
-  margin-bottom: 1.25rem;
+  margin-bottom: 0.65rem;
   position: relative;
-  padding-bottom: 1.1rem;
-  content-visibility: auto;
-  contain-intrinsic-size: 1px 700px;
+  padding-bottom: 0.5rem;
 }
 
 .page-section[hidden] {
@@ -167,8 +210,8 @@ main {
 }
 
 .ad-section {
-  margin: 0.9rem 0 1.1rem;
-  min-height: 90px;
+  margin: 0.45rem 0 0.55rem;
+  min-height: 0;
 }
 
 .rides-menu {
@@ -185,7 +228,8 @@ main {
   color: var(--text);
   border-radius: 999px;
   padding: 0.45rem 0.9rem;
-  font-size: 0.9rem;
+  font-size: 0.86rem;
+  font-weight: 500;
   transition: transform 0.15s ease, background 0.2s ease, border-color 0.2s ease;
 }
 
@@ -254,15 +298,17 @@ main {
 }
 
 .card-content h2 {
-  font-size: 1.1rem;
-  margin-bottom: 0.5rem;
+  font-size: 1.06rem;
+  line-height: 1.35;
+  margin-bottom: 0.42rem;
+  letter-spacing: 0.005em;
   color: var(--text);
 }
 
 .stats {
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   opacity: 0.7;
-  line-height: 1.6;
+  line-height: 1.58;
 }
 
 .card-meta {
@@ -281,7 +327,8 @@ main {
   color: var(--text);
   border-radius: 999px;
   padding: 0.25rem 0.55rem;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
+  font-weight: 500;
 }
 
 .youtube-link:hover {
@@ -345,7 +392,7 @@ main {
 
 .metrics-status {
   margin-top: 0.5rem;
-  font-size: 0.82rem;
+  font-size: 0.84rem;
   opacity: 0.75;
 }
 
@@ -362,7 +409,8 @@ main {
   color: var(--text);
   border-radius: 999px;
   padding: 0.35rem 0.8rem;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -373,7 +421,8 @@ main {
 }
 
 #uploaded-graph-section {
-  margin-bottom: 1.25rem;
+  margin-top: 0.2rem;
+  margin-bottom: 0.55rem;
   background: transparent;
   border: none;
   box-shadow: none;
@@ -382,9 +431,14 @@ main {
 #testimonials-section,
 #contact-section,
 #about-section {
+  margin-top: 0.2rem;
   background: transparent;
   border: none;
   box-shadow: none;
+}
+
+#testimonials-section {
+  padding-bottom: 0.55rem;
 }
 
 #uploaded-graph-section .metrics-legend {
@@ -438,7 +492,8 @@ main {
 }
 
 .metrics-modal-header h2 {
-  font-size: 1.05rem;
+  font-size: 1.08rem;
+  letter-spacing: 0.006em;
   color: var(--accent);
 }
 
@@ -503,7 +558,8 @@ main {
 }
 
 .video-modal-header h2 {
-  font-size: 1rem;
+  font-size: 1.02rem;
+  letter-spacing: 0.005em;
   color: var(--accent);
 }
 
@@ -550,12 +606,12 @@ footer {
 
 .theme-toggle {
   position: absolute;
-  right: 20px;
-  top: 20px;
+  right: 12px;
+  top: 12px;
   cursor: pointer;
-  background: var(--card-bg);
+  background: var(--header-chip-bg);
   color: var(--text);
-  border: none;
+  border: 1px solid var(--card-border);
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -565,6 +621,21 @@ footer {
   justify-content: center;
   box-shadow: 0 4px 10px var(--shadow);
   transition: background 0.3s ease, transform 0.2s ease;
+}
+
+@media (max-width: 900px) {
+  header {
+    margin-top: 0.55rem;
+    border-radius: 12px;
+    padding: 0.8rem 0.75rem 0.7rem;
+  }
+
+  .theme-toggle {
+    right: 10px;
+    top: 10px;
+    width: 36px;
+    height: 36px;
+  }
 }
 
 .theme-toggle:hover {
@@ -602,7 +673,7 @@ footer {
 }
 
 .info-section {
-  margin-top: 1.75rem;
+  margin-top: 0.35rem;
   background: var(--card-bg);
   border: 1px solid var(--card-border);
   border-radius: 12px;
@@ -611,9 +682,11 @@ footer {
 }
 
 .info-section h2 {
-  margin-bottom: 0.45rem;
+  margin-bottom: 0.4rem;
   color: var(--accent);
-  font-size: 1.1rem;
+  font-size: 1.08rem;
+  line-height: 1.35;
+  letter-spacing: 0.005em;
 }
 
 .testimonials-grid {
@@ -631,5 +704,7 @@ footer {
 
 .testimonial-card p {
   margin-bottom: 0.55rem;
+  font-size: 0.95rem;
+  line-height: 1.6;
   opacity: 0.85;
 }

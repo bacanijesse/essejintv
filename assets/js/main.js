@@ -1,7 +1,8 @@
 document.addEventListener("DOMContentLoaded", function () {
   let allRides = [];
   let selectedCountry = "all";
-  const gpxMetricsCache = new Map();
+  const activityMetricsCache = new Map();
+  let fitParserModulePromise = null;
   let metricsModal = null;
   let videoModal = null;
 
@@ -86,18 +87,41 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function getRideDisplayName(ride) {
-    if (!ride || typeof ride.gpxFile !== "string") {
+    const filePath = getRideFilePath(ride);
+
+    if (!filePath) {
       return ride && ride.title ? ride.title : "Ride";
     }
 
-    const parts = ride.gpxFile.split("/");
+    const parts = filePath.split("/");
     const fileName = parts[parts.length - 1] || "";
 
     if (fileName) {
-      return fileName.replace(/\.gpx$/i, "");
+      return fileName.replace(/\.(gpx|tcx|kml|fit|csv)$/i, "");
     }
 
     return ride.title || "Ride";
+  }
+
+  function getRideFilePath(ride) {
+    if (!ride || typeof ride !== "object") {
+      return null;
+    }
+
+    const candidate = [ride.dataFile, ride.activityFile, ride.file, ride.gpxFile]
+      .find(value => typeof value === "string" && value.trim().length > 0);
+
+    return candidate ? candidate.trim() : null;
+  }
+
+  function getFileFormat(filePath) {
+    if (typeof filePath !== "string") {
+      return "";
+    }
+
+    const normalizedPath = filePath.split("?")[0].split("#")[0];
+    const extensionMatch = normalizedPath.match(/\.([a-z0-9]+)$/i);
+    return extensionMatch ? extensionMatch[1].toLowerCase() : "";
   }
 
   function setContactFocusMode(isContactMode) {
@@ -133,24 +157,21 @@ document.addEventListener("DOMContentLoaded", function () {
           return watchId;
         }
 
-        const pathParts = parsedUrl.pathname.split("/").filter(Boolean);
-        if (pathParts[0] === "shorts" && pathParts[1]) {
-          return pathParts[1];
-        }
-
-        if (pathParts[0] === "embed" && pathParts[1]) {
-          return pathParts[1];
+        const parts = parsedUrl.pathname.split("/").filter(Boolean);
+        if (parts.length >= 2 && ["embed", "shorts", "live"].includes(parts[0])) {
+          return parts[1];
         }
       }
     } catch (error) {
-      return null;
+      const fallbackMatch = urlValue.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/))([A-Za-z0-9_-]{6,})/);
+      return fallbackMatch ? fallbackMatch[1] : null;
     }
 
     return null;
   }
 
   function isMobileView() {
-    return window.matchMedia("(max-width: 900px)").matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent || "");
+    return window.matchMedia("(max-width: 900px)").matches;
   }
 
   function ensureVideoModal() {
@@ -165,40 +186,32 @@ document.addEventListener("DOMContentLoaded", function () {
       <div class="video-modal" role="dialog" aria-modal="true" aria-labelledby="videoModalTitle">
         <div class="video-modal-header">
           <h2 id="videoModalTitle">Ride Video</h2>
-          <button class="video-close-btn" type="button" aria-label="Close video modal">✕</button>
+          <button type="button" class="video-close-btn" aria-label="Close video">✕</button>
         </div>
         <div class="video-frame-wrap">
-          <iframe class="video-frame" src="" title="Ride video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+          <iframe class="video-frame" title="Ride video player" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
         </div>
       </div>
     `;
 
-    const closeButton = backdrop.querySelector(".video-close-btn");
-    const modalPanel = backdrop.querySelector(".video-modal");
+    document.body.appendChild(backdrop);
+
     const frame = backdrop.querySelector(".video-frame");
     const titleNode = backdrop.querySelector("#videoModalTitle");
+    const closeButton = backdrop.querySelector(".video-close-btn");
 
-    function closeVideoModal() {
+    const closeVideoModal = function () {
       backdrop.hidden = true;
+      document.documentElement.classList.remove("modal-open");
+      document.body.classList.remove("modal-open");
+
       if (frame) {
         frame.src = "";
       }
-      document.documentElement.classList.remove("modal-open");
-      document.body.classList.remove("modal-open");
-    }
-
-    if (modalPanel) {
-      modalPanel.addEventListener("click", function (event) {
-        event.stopPropagation();
-      });
-    }
+    };
 
     if (closeButton) {
-      closeButton.addEventListener("click", function (event) {
-        event.preventDefault();
-        event.stopPropagation();
-        closeVideoModal();
-      });
+      closeButton.addEventListener("click", closeVideoModal);
     }
 
     backdrop.addEventListener("click", function (event) {
@@ -207,13 +220,11 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     });
 
-    document.addEventListener("keydown", function (event) {
+    window.addEventListener("keydown", function (event) {
       if (event.key === "Escape" && !backdrop.hidden) {
         closeVideoModal();
       }
     });
-
-    document.body.appendChild(backdrop);
 
     videoModal = {
       backdrop,
@@ -254,19 +265,21 @@ document.addEventListener("DOMContentLoaded", function () {
     document.body.classList.add("modal-open");
   }
 
-  function parseGpxMetrics(gpxText) {
+  function parseXmlDocument(xmlText, formatLabel) {
     const parser = new DOMParser();
-    const xml = parser.parseFromString(gpxText, "application/xml");
+    const xml = parser.parseFromString(xmlText, "application/xml");
     const parseError = xml.querySelector("parsererror");
 
     if (parseError) {
-      throw new Error("Invalid GPX file format.");
+      throw new Error(`Invalid ${formatLabel} file format.`);
     }
 
-    const trackPoints = Array.from(xml.getElementsByTagName("trkpt"));
+    return xml;
+  }
 
-    if (trackPoints.length < 2) {
-      throw new Error("GPX has too few track points.");
+  function buildMetricsFromTrackPoints(points, formatLabel) {
+    if (!Array.isArray(points) || points.length < 2) {
+      throw new Error(`${formatLabel} has too few track points.`);
     }
 
     const elevation = [];
@@ -279,31 +292,34 @@ document.addEventListener("DOMContentLoaded", function () {
     let coordinateCount = 0;
     let firstLatitude = null;
     let firstLongitude = null;
-
     let previousPoint = null;
 
-    trackPoints.forEach((trackPoint, index) => {
-      const latitude = Number.parseFloat(trackPoint.getAttribute("lat"));
-      const longitude = Number.parseFloat(trackPoint.getAttribute("lon"));
-      const elevationNode = trackPoint.getElementsByTagName("ele")[0];
-      const timeNode = trackPoint.getElementsByTagName("time")[0];
-      const elevationValue = elevationNode ? Number.parseFloat(elevationNode.textContent) : null;
-      const timeValue = timeNode ? Date.parse(timeNode.textContent) : NaN;
-      const speedFromGpx = getFirstTagValueByLocalName(trackPoint, "speed");
-      const heartRateValue = getFirstTagValueByLocalName(trackPoint, "hr");
-      const temperatureValue = getFirstTagValueByLocalName(trackPoint, "atemp");
+    points.forEach(point => {
+      const latitude = Number.parseFloat(point.latitude);
+      const longitude = Number.parseFloat(point.longitude);
+      const elevationValue = Number.parseFloat(point.elevation);
+      const heartRateValue = Number.parseFloat(point.heartRate);
+      const temperatureValue = Number.parseFloat(point.temperature);
+      const timeValue = Number.isFinite(point.timeValue)
+        ? point.timeValue
+        : Date.parse(point.timeValue || point.time || "");
 
-      let speedValue = speedFromGpx;
+      let speedValue = Number.parseFloat(point.speedKmh);
 
-      if (!Number.isFinite(speedValue) && previousPoint && Number.isFinite(timeValue) && Number.isFinite(previousPoint.timeValue)) {
+      if (!Number.isFinite(speedValue)
+        && previousPoint
+        && Number.isFinite(timeValue)
+        && Number.isFinite(previousPoint.timeValue)
+        && Number.isFinite(latitude)
+        && Number.isFinite(longitude)
+        && Number.isFinite(previousPoint.latitude)
+        && Number.isFinite(previousPoint.longitude)) {
         const timeSeconds = (timeValue - previousPoint.timeValue) / 1000;
 
         if (timeSeconds > 0) {
           const distanceMeters = haversineDistanceMeters(previousPoint.latitude, previousPoint.longitude, latitude, longitude);
           speedValue = (distanceMeters / timeSeconds) * 3.6;
         }
-      } else if (Number.isFinite(speedValue)) {
-        speedValue = speedValue * 3.6;
       }
 
       elevation.push(Number.isFinite(elevationValue) ? elevationValue : null);
@@ -341,6 +357,222 @@ document.addEventListener("DOMContentLoaded", function () {
       averageLongitude: coordinateCount > 0 ? longitudeSum / coordinateCount : null,
       route,
     };
+  }
+
+  function parseGpxMetrics(gpxText) {
+    const xml = parseXmlDocument(gpxText, "GPX");
+    const trackPoints = Array.from(xml.getElementsByTagName("trkpt"));
+    const points = trackPoints.map(trackPoint => {
+      const latitude = Number.parseFloat(trackPoint.getAttribute("lat"));
+      const longitude = Number.parseFloat(trackPoint.getAttribute("lon"));
+      const elevationNode = trackPoint.getElementsByTagName("ele")[0];
+      const timeNode = trackPoint.getElementsByTagName("time")[0];
+      const speedFromGpx = getFirstTagValueByLocalName(trackPoint, "speed");
+      const speedKmh = Number.isFinite(speedFromGpx) ? speedFromGpx * 3.6 : null;
+
+      return {
+        latitude,
+        longitude,
+        elevation: elevationNode ? Number.parseFloat(elevationNode.textContent) : null,
+        timeValue: timeNode ? Date.parse(timeNode.textContent) : NaN,
+        speedKmh,
+        heartRate: getFirstTagValueByLocalName(trackPoint, "hr"),
+        temperature: getFirstTagValueByLocalName(trackPoint, "atemp"),
+      };
+    });
+
+    return buildMetricsFromTrackPoints(points, "GPX");
+  }
+
+  function parseTcxMetrics(tcxText) {
+    const xml = parseXmlDocument(tcxText, "TCX");
+    const trackPoints = Array.from(xml.getElementsByTagName("Trackpoint"));
+    const points = trackPoints.map(trackPoint => {
+      const latitude = getFirstTagValueByLocalName(trackPoint, "LatitudeDegrees");
+      const longitude = getFirstTagValueByLocalName(trackPoint, "LongitudeDegrees");
+      const speedMs = getFirstTagValueByLocalName(trackPoint, "Speed");
+
+      return {
+        latitude,
+        longitude,
+        elevation: getFirstTagValueByLocalName(trackPoint, "AltitudeMeters"),
+        timeValue: Date.parse(trackPoint.getElementsByTagName("Time")[0]?.textContent || ""),
+        speedKmh: Number.isFinite(speedMs) ? speedMs * 3.6 : null,
+        heartRate: getFirstTagValueByLocalName(trackPoint, "Value"),
+        temperature: getFirstTagValueByLocalName(trackPoint, "Temperature"),
+      };
+    });
+
+    return buildMetricsFromTrackPoints(points, "TCX");
+  }
+
+  function parseKmlMetrics(kmlText) {
+    const xml = parseXmlDocument(kmlText, "KML");
+    const trackPoints = [];
+    const gxTrack = xml.getElementsByTagName("gx:Track")[0] || xml.getElementsByTagName("Track")[0];
+
+    if (gxTrack) {
+      const whenNodes = Array.from(gxTrack.getElementsByTagName("when"));
+      const coordNodes = Array.from(gxTrack.getElementsByTagName("gx:coord"));
+
+      for (let index = 0; index < coordNodes.length; index += 1) {
+        const coordText = coordNodes[index]?.textContent?.trim() || "";
+        const [longitudeValue, latitudeValue, altitudeValue] = coordText.split(/\s+/).map(Number.parseFloat);
+
+        trackPoints.push({
+          latitude: latitudeValue,
+          longitude: longitudeValue,
+          elevation: altitudeValue,
+          timeValue: Date.parse(whenNodes[index]?.textContent || ""),
+          speedKmh: null,
+          heartRate: null,
+          temperature: null,
+        });
+      }
+    } else {
+      const coordinatesNode = xml.getElementsByTagName("coordinates")[0];
+      const rows = coordinatesNode?.textContent?.trim().split(/\s+/) || [];
+
+      rows.forEach(row => {
+        const [longitudeValue, latitudeValue, altitudeValue] = row.split(",").map(Number.parseFloat);
+
+        trackPoints.push({
+          latitude: latitudeValue,
+          longitude: longitudeValue,
+          elevation: altitudeValue,
+          timeValue: NaN,
+          speedKmh: null,
+          heartRate: null,
+          temperature: null,
+        });
+      });
+    }
+
+    return buildMetricsFromTrackPoints(trackPoints, "KML");
+  }
+
+  function parseCsvMetrics(csvText) {
+    const rows = csvText
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(line => line.length > 0);
+
+    if (rows.length < 2) {
+      throw new Error("CSV has too few rows.");
+    }
+
+    const delimiter = rows[0].split(";").length > rows[0].split(",").length ? ";" : ",";
+    const headers = rows[0].split(delimiter).map(value => value.trim());
+    const normalizeHeader = value => value.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const normalizedHeaders = headers.map(normalizeHeader);
+
+    const findIndex = candidates => normalizedHeaders.findIndex(header => candidates.includes(header));
+
+    const latitudeIndex = findIndex(["lat", "latitude", "latdeg", "latitudedegrees"]);
+    const longitudeIndex = findIndex(["lon", "lng", "long", "longitude", "longitudedegrees"]);
+    const elevationIndex = findIndex(["ele", "elevation", "alt", "altitude", "altitudemeters"]);
+    const timeIndex = findIndex(["time", "timestamp", "datetime", "date"]);
+    const speedIndex = findIndex(["speed", "speedkmh", "speedkph", "enhancedspeed"]);
+    const heartRateIndex = findIndex(["hr", "heartrate", "heartratebpm", "heartratevalue", "heart_rate"]);
+    const temperatureIndex = findIndex(["temp", "temperature", "atemp", "airtemp", "airtemperature"]);
+
+    const speedHeader = speedIndex >= 0 ? headers[speedIndex].toLowerCase() : "";
+    const speedInMetersPerSecond = speedHeader.includes("m/s") || speedHeader.includes(" mps ");
+
+    const points = rows.slice(1).map(row => {
+      const columns = row.split(delimiter).map(value => value.trim());
+      const rawSpeed = speedIndex >= 0 ? Number.parseFloat(columns[speedIndex]) : null;
+
+      return {
+        latitude: latitudeIndex >= 0 ? Number.parseFloat(columns[latitudeIndex]) : null,
+        longitude: longitudeIndex >= 0 ? Number.parseFloat(columns[longitudeIndex]) : null,
+        elevation: elevationIndex >= 0 ? Number.parseFloat(columns[elevationIndex]) : null,
+        timeValue: timeIndex >= 0 ? Date.parse(columns[timeIndex]) : NaN,
+        speedKmh: Number.isFinite(rawSpeed) ? (speedInMetersPerSecond ? rawSpeed * 3.6 : rawSpeed) : null,
+        heartRate: heartRateIndex >= 0 ? Number.parseFloat(columns[heartRateIndex]) : null,
+        temperature: temperatureIndex >= 0 ? Number.parseFloat(columns[temperatureIndex]) : null,
+      };
+    });
+
+    return buildMetricsFromTrackPoints(points, "CSV");
+  }
+
+  async function loadFitParserClass() {
+    if (!fitParserModulePromise) {
+      fitParserModulePromise = import("https://unpkg.com/fit-file-parser@2.3.3/dist/fit-parser.js")
+        .then(moduleValue => moduleValue.default || moduleValue.FitParser)
+        .catch(error => {
+          fitParserModulePromise = null;
+          throw error;
+        });
+    }
+
+    return fitParserModulePromise;
+  }
+
+  async function parseFitMetrics(arrayBuffer) {
+    const FitParser = await loadFitParserClass();
+    const fitParser = new FitParser({
+      force: true,
+      speedUnit: "km/h",
+      temperatureUnit: "celsius",
+      mode: "list",
+    });
+
+    const fitData = await fitParser.parseAsync(arrayBuffer);
+    const records = Array.isArray(fitData?.records) ? fitData.records : [];
+    const points = records.map(record => {
+      const latitude = Number.parseFloat(record.position_lat ?? record.positionLat);
+      const longitude = Number.parseFloat(record.position_long ?? record.positionLong ?? record.position_lng);
+      const speedKmh = Number.parseFloat(record.speed ?? record.enhanced_speed);
+
+      return {
+        latitude,
+        longitude,
+        elevation: Number.parseFloat(record.enhanced_altitude ?? record.altitude),
+        timeValue: Date.parse(record.timestamp),
+        speedKmh,
+        heartRate: Number.parseFloat(record.heart_rate),
+        temperature: Number.parseFloat(record.temperature),
+      };
+    });
+
+    return buildMetricsFromTrackPoints(points, "FIT");
+  }
+
+  async function parseMetricsFromFile(filePath) {
+    const format = getFileFormat(filePath);
+
+    if (!["gpx", "tcx", "kml", "fit", "csv"].includes(format)) {
+      throw new Error("Unsupported activity file format.");
+    }
+
+    const response = await fetch(filePath);
+
+    if (!response.ok) {
+      throw new Error("Unable to load activity file.");
+    }
+
+    if (format === "fit") {
+      const fitBuffer = await response.arrayBuffer();
+      return parseFitMetrics(fitBuffer);
+    }
+
+    const fileText = await response.text();
+
+    if (format === "gpx") {
+      return parseGpxMetrics(fileText);
+    }
+
+    if (format === "tcx") {
+      return parseTcxMetrics(fileText);
+    }
+
+    if (format === "kml") {
+      return parseKmlMetrics(fileText);
+    }
+
+    return parseCsvMetrics(fileText);
   }
 
   function detectCountryFromCoordinates(latitude, longitude) {
@@ -780,7 +1012,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const statusNode = panel.querySelector(".metrics-status");
     if (statusNode) {
-      statusNode.textContent = "Loading GPX metrics...";
+      statusNode.textContent = "Loading ride metrics...";
     }
 
     modal.currentMetrics = null;
@@ -842,30 +1074,25 @@ document.addEventListener("DOMContentLoaded", function () {
     const statusNode = panel.querySelector(".metrics-status");
     const canvas = panel.querySelector("canvas");
 
-    if (!canvas || !ride.gpxFile) {
+    const rideFilePath = getRideFilePath(ride);
+
+    if (!canvas || !rideFilePath) {
       if (statusNode) {
-        statusNode.textContent = "No GPX file available for this ride.";
+        statusNode.textContent = "No activity file available for this ride.";
       }
       return;
     }
 
     if (statusNode) {
-      statusNode.textContent = "Loading GPX metrics...";
+      statusNode.textContent = "Loading ride metrics...";
     }
 
     try {
-      let metrics = gpxMetricsCache.get(ride.gpxFile);
+      let metrics = activityMetricsCache.get(rideFilePath);
 
       if (!metrics) {
-        const response = await fetch(ride.gpxFile);
-
-        if (!response.ok) {
-          throw new Error("Unable to load GPX file.");
-        }
-
-        const gpxText = await response.text();
-        metrics = parseGpxMetrics(gpxText);
-        gpxMetricsCache.set(ride.gpxFile, metrics);
+        metrics = await parseMetricsFromFile(rideFilePath);
+        activityMetricsCache.set(rideFilePath, metrics);
       }
 
       if (metricsModal) {
@@ -881,9 +1108,9 @@ document.addEventListener("DOMContentLoaded", function () {
         statusNode.textContent = "";
       }
     } catch (error) {
-      console.error("GPX metrics error:", error);
+      console.error("Activity metrics error:", error);
       if (statusNode) {
-        statusNode.textContent = "Unable to load GPX metrics for this ride.";
+        statusNode.textContent = "Unable to load metrics for this ride.";
       }
     }
   }
@@ -900,22 +1127,17 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   async function getRideMetrics(ride) {
-    if (!ride || !ride.gpxFile) {
+    const rideFilePath = getRideFilePath(ride);
+
+    if (!rideFilePath) {
       return null;
     }
 
-    let metrics = gpxMetricsCache.get(ride.gpxFile);
+    let metrics = activityMetricsCache.get(rideFilePath);
 
     if (!metrics) {
-      const response = await fetch(ride.gpxFile);
-
-      if (!response.ok) {
-        throw new Error("Unable to load GPX file.");
-      }
-
-      const gpxText = await response.text();
-      metrics = parseGpxMetrics(gpxText);
-      gpxMetricsCache.set(ride.gpxFile, metrics);
+      metrics = await parseMetricsFromFile(rideFilePath);
+      activityMetricsCache.set(rideFilePath, metrics);
     }
 
     return metrics;
@@ -923,7 +1145,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   async function enrichRideCountries(rides) {
     const metricPromises = rides.map(async ride => {
-      if (!ride || !ride.gpxFile) {
+      if (!ride || !getRideFilePath(ride)) {
         return { ride, metrics: null, error: null };
       }
 
@@ -1073,7 +1295,7 @@ document.addEventListener("DOMContentLoaded", function () {
       try {
         metrics = await getRideMetrics(ride);
       } catch (error) {
-        console.warn("Summary GPX load skipped for ride:", ride.title, error);
+        console.warn("Summary activity load skipped for ride:", ride.title, error);
       }
 
       return {
