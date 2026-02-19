@@ -795,7 +795,7 @@ document.addEventListener("DOMContentLoaded", function () {
     ctx.stroke();
   }
 
-  function drawCombinedGraph(canvas, metrics, visibleSeries = { elevation: true, speed: true, heartRate: true, temperature: true, distance: true, calories: true }) {
+  function drawCombinedGraph(canvas, metrics, visibleSeries = { elevation: true, speed: true, heartRate: true, temperature: true, distance: true }) {
     const ctx = canvas.getContext("2d");
     const width = canvas.width;
     const height = canvas.height;
@@ -809,7 +809,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const xTickCount = 4;
     const yTickCount = 4;
 
-    const visibleMetricKeys = ["elevation", "speed", "heartRate", "temperature", "distance", "calories"].filter(key => Boolean(visibleSeries[key]));
+    const visibleMetricKeys = ["elevation", "speed", "heartRate", "temperature", "distance"].filter(key => Boolean(visibleSeries[key]));
     const singleMetricMode = visibleMetricKeys.length === 1;
 
     let yAxisTitle = "Value Scale (0-200)";
@@ -833,9 +833,6 @@ document.addEventListener("DOMContentLoaded", function () {
       } else if (singleKey === "distance") {
         yAxisTitle = "Distance (km)";
         yLabelFormatter = value => value.toFixed(2);
-      } else if (singleKey === "calories") {
-        yAxisTitle = "Calories (kcal)";
-        yLabelFormatter = value => String(Math.round(value));
       } else {
         yAxisTitle = "Heart Rate (bpm)";
         yLabelFormatter = value => String(Math.round(value));
@@ -948,10 +945,6 @@ document.addEventListener("DOMContentLoaded", function () {
       drawSeries(ctx, distanceSeries, "#8e44ad", leftPadding, topPadding, plotWidth, plotHeight);
     }
 
-    if (visibleSeries.calories) {
-      const caloriesSeries = mapValuesToCurrentScale(metrics.calories);
-      drawSeries(ctx, caloriesSeries, "#ff9800", leftPadding, topPadding, plotWidth, plotHeight);
-    }
   }
 
   function updateStatLegend(panel, metrics) {
@@ -1023,7 +1016,6 @@ document.addEventListener("DOMContentLoaded", function () {
           <button class="legend-item legend-heart-rate" data-metric="heart-rate" type="button">Heart Rate: --</button>
           <button class="legend-item legend-temperature" data-metric="temperature" type="button">Air Temp: --</button>
           <button class="legend-item legend-distance" data-metric="distance" type="button">Distance: --</button>
-          <button class="legend-item legend-calories" data-metric="calories" type="button">Calories: --</button>
         </div>
         <p class="metrics-status" aria-live="polite"></p>
       </div>
@@ -1068,7 +1060,6 @@ document.addEventListener("DOMContentLoaded", function () {
       heartRate: true,
       temperature: true,
       distance: true,
-      calories: true,
     };
 
     const legendButtons = Array.from(backdrop.querySelectorAll(".legend-item"));
@@ -1122,7 +1113,6 @@ document.addEventListener("DOMContentLoaded", function () {
         this.visibleSeries.heartRate = true;
         this.visibleSeries.temperature = true;
         this.visibleSeries.distance = true;
-        this.visibleSeries.calories = true;
         updateLegendVisualState();
       },
     };
