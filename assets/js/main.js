@@ -1,8 +1,13 @@
 document.addEventListener("DOMContentLoaded", function () {
 
-  /* LOAD RIDES */
+  /* ===== LOAD RIDES ===== */
   fetch("data/rides.json")
-    .then(res => res.json())
+    .then(res => {
+      if (!res.ok) {
+        throw new Error("Failed to load rides.json");
+      }
+      return res.json();
+    })
     .then(rides => {
       const container = document.getElementById("rides-grid");
       if (!container) return;
@@ -13,7 +18,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         card.innerHTML = `
           <a href="rides/ride.html?id=${ride.id}">
-            <img src="${ride.cover}" loading="lazy">
+            <img src="${ride.cover}" loading="lazy" alt="${ride.title}">
           </a>
           <div class="card-content">
             <h2>${ride.title}</h2>
@@ -26,13 +31,19 @@ document.addEventListener("DOMContentLoaded", function () {
 
         container.appendChild(card);
       });
+    })
+    .catch(err => {
+      console.error("Ride loading error:", err);
     });
 
-  /* THEME SYSTEM */
+  /* ===== THEME SYSTEM ===== */
   const toggleBtn = document.getElementById("themeToggle");
   const icon = document.getElementById("themeIcon");
 
-  if (!toggleBtn || !icon) return;
+  if (!toggleBtn || !icon) {
+    console.warn("Theme toggle elements not found.");
+    return;
+  }
 
   const savedTheme = localStorage.getItem("theme");
 
