@@ -227,18 +227,25 @@ document.addEventListener("DOMContentLoaded", function () {
       .map(href => href.replace(/\/+$/, ""))
       .filter(name => name && name !== "." && name !== "..");
 
+    const folderEntries = await Promise.all(folderNames.map(async folderName => {
+      try {
+        const entryLinks = await fetchDirectoryListing(`gpx/${folderName}/`);
+        return { folderName, entryLinks };
+      } catch (error) {
+        console.warn("Skipping folder discovery due to listing error:", folderName, error);
+        return null;
+      }
+    }));
+
     const discoveredRides = [];
     let generatedId = 1;
 
-    for (const folderName of folderNames) {
-      let entryLinks = [];
-
-      try {
-        entryLinks = await fetchDirectoryListing(`gpx/${folderName}/`);
-      } catch (error) {
-        console.warn("Skipping folder discovery due to listing error:", folderName, error);
+    for (const folderEntry of folderEntries) {
+      if (!folderEntry) {
         continue;
       }
+
+      const { folderName, entryLinks } = folderEntry;
 
       const activityFiles = entryLinks
         .filter(name => /\.(gpx|tcx|kml|fit|csv)$/i.test(name))
@@ -1537,10 +1544,29 @@ document.addEventListener("DOMContentLoaded", function () {
     return mergedMetrics;
   }
 
+  function shouldEnrichRideMetrics(ride) {
+    if (!ride || typeof ride !== "object") {
+      return false;
+    }
+
+    const missingCountry = !ride.country || String(ride.country).trim().length === 0;
+    const missingTemperature = !Number.isFinite(Number.parseFloat(ride.airTemperature));
+    const missingDistance = !Number.isFinite(Number.parseFloat(ride.distance)) || Number.parseFloat(ride.distance) <= 0;
+    const missingElevation = !Number.isFinite(Number.parseFloat(ride.elevation)) || Number.parseFloat(ride.elevation) <= 0;
+
+    return missingCountry || missingTemperature || missingDistance || missingElevation;
+  }
+
   async function enrichRideCountries(rides) {
+    let hasUpdates = false;
+
     const metricPromises = rides.map(async ride => {
       if (!ride || getRideFilePaths(ride).length === 0) {
         return { ride, metrics: null, error: null };
+      }
+
+      if (!shouldEnrichRideMetrics(ride)) {
+        return { ride, metrics: null, error: null, skipped: true };
       }
 
       try {
@@ -1553,7 +1579,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const results = await Promise.all(metricPromises);
 
-    results.forEach(({ ride, metrics, error }) => {
+    results.forEach(({ ride, metrics, error, skipped }) => {
+      if (skipped) {
+        return;
+      }
+
       if (error) {
         console.warn("Country detection skipped for ride:", ride?.title, error);
         return;
@@ -1566,25 +1596,36 @@ document.addEventListener("DOMContentLoaded", function () {
       const detectedCountry = detectCountryFromMetrics(metrics);
 
       if (detectedCountry) {
+        if (ride.country !== detectedCountry) {
+          hasUpdates = true;
+        }
         ride.country = detectedCountry;
       }
 
       const avgTemperature = averageFinite(metrics.temperature);
       if (Number.isFinite(avgTemperature)) {
-        ride.airTemperature = Number(avgTemperature.toFixed(1));
+        const updatedTemp = Number(avgTemperature.toFixed(1));
+        if (!Number.isFinite(Number.parseFloat(ride.airTemperature)) || Number.parseFloat(ride.airTemperature) !== updatedTemp) {
+          hasUpdates = true;
+        }
+        ride.airTemperature = updatedTemp;
       }
 
       const distanceRange = getMinMax(metrics.distance);
       if (distanceRange && Number.isFinite(distanceRange.max) && (!Number.isFinite(Number.parseFloat(ride.distance)) || Number.parseFloat(ride.distance) <= 0)) {
+        hasUpdates = true;
         ride.distance = Number(distanceRange.max.toFixed(2));
       }
 
       const elevationRange = getMinMax(metrics.elevation);
       if (elevationRange && Number.isFinite(elevationRange.min) && Number.isFinite(elevationRange.max) && (!Number.isFinite(Number.parseFloat(ride.elevation)) || Number.parseFloat(ride.elevation) <= 0)) {
         const elevationGain = Math.max(0, elevationRange.max - elevationRange.min);
+        hasUpdates = true;
         ride.elevation = Math.round(elevationGain);
       }
     });
+
+    return hasUpdates;
   }
 
   async function renderUploadedGraph() {
@@ -2067,9 +2108,22 @@ document.addEventListener("DOMContentLoaded", function () {
   loadRidesData()
     .then(async rides => {
       allRides = Array.isArray(rides) ? rides : [];
-      await enrichRideCountries(allRides);
       renderRides();
-      renderUploadedGraph();
+
+      requestAnimationFrame(() => {
+        renderUploadedGraph();
+      });
+
+      enrichRideCountries(allRides)
+        .then(hasUpdates => {
+          if (hasUpdates) {
+            renderRides();
+            renderUploadedGraph();
+          }
+        })
+        .catch(error => {
+          console.warn("Background enrichment skipped:", error);
+        });
     })
     .catch(err => {
       console.error("Ride loading error:", err);
