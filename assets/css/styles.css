@@ -125,6 +125,7 @@ main {
   border: 1px solid var(--card-border);
   box-shadow: 0 2px 8px var(--shadow);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
 }
 
 .card:hover {
@@ -146,6 +147,99 @@ main {
   font-size: 0.9rem;
   opacity: 0.7;
   line-height: 1.6;
+}
+
+.card-metrics-icon {
+  font-size: 0.95rem;
+  opacity: 0.85;
+}
+
+.metrics-canvas {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  background: rgba(128, 128, 128, 0.06);
+}
+
+.metrics-legend {
+  margin-top: 0.6rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  font-size: 0.8rem;
+}
+
+.legend-item {
+  padding: 0.16rem 0.42rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+}
+
+.legend-elevation {
+  color: #e53935;
+}
+
+.legend-speed {
+  color: #2e7d32;
+}
+
+.legend-heart-rate {
+  color: #1e88e5;
+}
+
+.metrics-status {
+  margin-top: 0.5rem;
+  font-size: 0.82rem;
+  opacity: 0.75;
+}
+
+.metrics-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: var(--bg-overlay);
+  z-index: 1000;
+}
+
+.metrics-modal {
+  width: min(900px, 95vw);
+  max-height: 90vh;
+  overflow: auto;
+  background: var(--card-bg);
+  color: var(--text);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px var(--shadow);
+  padding: 1rem;
+}
+
+.metrics-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.metrics-modal-header h2 {
+  font-size: 1.05rem;
+  color: var(--accent);
+}
+
+.metrics-close-btn {
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  color: var(--text);
+  border-radius: 999px;
+  width: 34px;
+  height: 34px;
+  cursor: pointer;
+}
+
+body.modal-open {
+  overflow: hidden;
 }
 
 footer {
