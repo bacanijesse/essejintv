@@ -1,14 +1,26 @@
-[
-  {
-    "id": "first-ride",
-    "title": "Hsinchu Test Ride",
-    "date": "2026-02-19",
-    "distance": 35,
-    "elevation": 420,
-    "location": "Hsinchu, Taiwan",
-    "gpx": "assets/gpx/test.gpx",
-    "cover": "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee",
-    "gallery": [],
-    "description": "First test ride for the new website."
-  }
+[  
+  {  
+    "title": "Morning Ride",  
+    "date": "2026-02-19",  
+    "distance": 25.4,  
+    "elevation": 300,  
+    "description": "A refreshing morning ride through the park.",  
+    "gpx_file": "path/to/morning_ride.gpx",  
+    "photos": [  
+      "path/to/photo1.jpg",  
+      "path/to/photo2.jpg"  
+    ]  
+  },  
+  {  
+    "title": "Evening Ride",  
+    "date": "2026-02-19",  
+    "distance": 30.2,  
+    "elevation": 250,  
+    "description": "Enjoying the sunset while cycling along the coast.",  
+    "gpx_file": "path/to/evening_ride.gpx",  
+    "photos": [  
+      "path/to/photo3.jpg",  
+      "path/to/photo4.jpg"  
+    ]  
+  }  
 ]
