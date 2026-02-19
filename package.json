@@ -1,0 +1,2 @@
+{\n  \"name\": \"cycling-dashboard\",\n  \"version\": \"1.0.0\",\n  \"description\": \"A cycling dashboard project\",\n  \"main\": \"index.js\",\n  \"scripts\": {\n    \"test\": \"echo 'Error: no test specified' && exit 1\"\n  },\n  \"keywords\": [\n    \"cycling\",\n    \"dashboard\"
+  ],\n  \"author\": \"bacanijesse\",\n  \"license\": \"ISC\"\n}
