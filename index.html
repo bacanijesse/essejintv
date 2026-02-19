@@ -1,1 +1,48 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>🚴 Cycling Taiwan - Jesse's Adventures</title><link rel="stylesheet" href="assets/css/styles.css"></head><body><header><h1>🚴 Cycling Taiwan</h1><button id="themeToggle" class="theme-toggle"><span id="themeIcon">🌙</span></button></header><main><div id="rides-grid" class="rides-grid"></div></main><footer><p>&copy; 2026 Jesse's Cycling Adventures. All rights reserved.</p></footer><script src="assets/js/main.js"></script></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>🚴 essejintv - Cycling's Adventures</title>
+	<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+	<header>
+		<h1>🚴 essejintv -  Taiwan</h1>
+		<nav class="top-menu" aria-label="Main menu">
+			<a href="#home">Home</a>
+			<a href="#about">About</a>
+			<a href="#contacts">Contacts</a>
+		</nav>
+		<button id="themeToggle" class="theme-toggle">
+			<span id="themeIcon">🌙</span>
+		</button>
+	</header>
+
+	<main id="home">
+		<nav class="rides-menu" aria-label="Ride locations">
+			<button class="menu-btn active" data-country="all" type="button">All</button>
+			<button class="menu-btn" data-country="taiwan" type="button">Taiwan</button>
+			<button class="menu-btn" data-country="philippines" type="button">Philippines</button>
+		</nav>
+
+		<div id="rides-grid" class="rides-grid"></div>
+
+		<section id="about" class="info-section">
+			<h2>About</h2>
+			<p>Cycling logs and ride stories from Taiwan, Philippines, and beyond.</p>
+		</section>
+
+		<section id="contacts" class="info-section">
+			<h2>Contacts</h2>
+			<p>Email: hello@essejintv.com</p>
+		</section>
+	</main>
+
+	<footer>
+		<p>&copy; 2026 Jesse's Cycling Adventures. All rights reserved.</p>
+	</footer>
+
+	<script src="assets/js/main.js"></script>
+</body>
+</html>

@@ -1,4 +1,59 @@
 document.addEventListener("DOMContentLoaded", function () {
+  let allRides = [];
+  let selectedCountry = "all";
+
+  const container = document.getElementById("rides-grid");
+  const menuButtons = document.querySelectorAll(".menu-btn");
+
+  function createRideCard(ride) {
+    const card = document.createElement("div");
+    card.className = "card";
+
+    card.innerHTML = `
+      <a href="rides/ride.html?id=${ride.id || ''}">
+        ${ride.cover ? `<img src="${ride.cover}" loading="lazy" alt="${ride.title}">` : ''}
+      </a>
+      <div class="card-content">
+        <h2>${ride.title}</h2>
+        <div class="stats">
+          ${ride.distance} km • ${ride.elevation} m<br>
+          ${ride.date}
+        </div>
+      </div>
+    `;
+
+    return card;
+  }
+
+  function renderRides() {
+    if (!container) return;
+
+    container.innerHTML = "";
+
+    const filteredRides = selectedCountry === "all"
+      ? allRides
+      : allRides.filter(ride => (ride.country || "").toLowerCase() === selectedCountry);
+
+    if (filteredRides.length === 0) {
+      container.innerHTML = `<p class="error-message">No rides found for this location yet.</p>`;
+      return;
+    }
+
+    filteredRides.forEach(ride => {
+      container.appendChild(createRideCard(ride));
+    });
+  }
+
+  menuButtons.forEach(button => {
+    button.addEventListener("click", function () {
+      selectedCountry = this.dataset.country || "all";
+
+      menuButtons.forEach(btn => btn.classList.remove("active"));
+      this.classList.add("active");
+
+      renderRides();
+    });
+  });
 
   /* ===== LOAD RIDES ===== */
   fetch("data/rides.json")
@@ -9,32 +64,11 @@ document.addEventListener("DOMContentLoaded", function () {
       return res.json();
     })
     .then(rides => {
-      const container = document.getElementById("rides-grid");
-      if (!container) return;
-
-      rides.forEach(ride => {
-        const card = document.createElement("div");
-        card.className = "card";
-
-        card.innerHTML = `
-          <a href="rides/ride.html?id=${ride.id || ''}">
-            ${ride.cover ? `<img src="${ride.cover}" loading="lazy" alt="${ride.title}">` : ''}
-          </a>
-          <div class="card-content">
-            <h2>${ride.title}</h2>
-            <div class="stats">
-              ${ride.distance} km • ${ride.elevation} m<br>
-              ${ride.date}
-            </div>
-          </div>
-        `;
-
-        container.appendChild(card);
-      });
+      allRides = Array.isArray(rides) ? rides : [];
+      renderRides();
     })
     .catch(err => {
       console.error("Ride loading error:", err);
-      const container = document.getElementById("rides-grid");
       if (container) {
         container.innerHTML = `<p class="error-message">Failed to load rides. Please try again later.</p>`;
       }

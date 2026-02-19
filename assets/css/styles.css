@@ -5,6 +5,8 @@
   --card-border: #e0e0e0;
   --shadow: rgba(0,0,0,0.08);
   --accent: #4361ee;
+  --parallax-image: url("https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=2000&q=80");
+  --bg-overlay: rgba(240, 242, 245, 0.78);
 }
 
 [data-theme="dark"] {
@@ -14,6 +16,7 @@
   --card-border: #2a2a4a;
   --shadow: rgba(0,0,0,0.3);
   --accent: #4cc9f0;
+  --bg-overlay: rgba(26, 26, 46, 0.82);
 }
 
 * {
@@ -24,10 +27,21 @@
 
 body {
   font-family: system-ui, -apple-system, sans-serif;
-  background: var(--bg);
+  background-color: var(--bg);
+  background-image: linear-gradient(var(--bg-overlay), var(--bg-overlay)), var(--parallax-image);
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center top;
+  background-attachment: fixed;
   color: var(--text);
   min-height: 100vh;
-  transition: background 0.3s ease;
+  transition: background-color 0.3s ease;
+}
+
+@media (max-width: 900px) {
+  body {
+    background-attachment: scroll;
+  }
 }
 
 header {
@@ -41,10 +55,61 @@ h1 {
   color: var(--accent);
 }
 
+.top-menu {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 0.9rem;
+}
+
+.top-menu a {
+  color: var(--text);
+  text-decoration: none;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  border-radius: 999px;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.92rem;
+  transition: transform 0.15s ease, border-color 0.2s ease;
+}
+
+.top-menu a:hover {
+  transform: translateY(-1px);
+  border-color: var(--accent);
+}
+
 main {
   max-width: 1100px;
   margin: 0 auto;
   padding: 1rem;
+}
+
+.rides-menu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.menu-btn {
+  cursor: pointer;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.9rem;
+  transition: transform 0.15s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+.menu-btn:hover {
+  transform: translateY(-1px);
+}
+
+.menu-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
 }
 
 .rides-grid {
@@ -123,4 +188,19 @@ footer {
   height: 220px;
   object-fit: cover;
   display: block;
+}
+
+.info-section {
+  margin-top: 1.75rem;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 2px 8px var(--shadow);
+}
+
+.info-section h2 {
+  margin-bottom: 0.45rem;
+  color: var(--accent);
+  font-size: 1.1rem;
 }
