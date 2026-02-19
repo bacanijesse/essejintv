@@ -1,23 +1,23 @@
-# Cycling Taiwan
+# Project Documentation
 
-Welcome to Cycling Taiwan, your ultimate guide to bicycle riding adventures across the beautiful landscapes of Taiwan! Explore scenic routes, thrilling trails, and experience the rich culture while cycling through this amazing island. Whether you're a beginner or an experienced cyclist, you'll find everything you need to plan your next ride in Taiwan.
+## Setup Instructions
+1. Clone the repository using `git clone https://github.com/bacanijesse/essejintv.git`
+2. Navigate to the project directory: `cd essejintv`
+3. Install the required dependencies: `npm install`
+4. Run the application: `npm start`
 
-## Features
-- Discover popular cycling routes
-- Tips and tricks for biking in Taiwan
-- Join community events and rides
-- Share your own experiences and photos
+## How to Add Rides
+1. Open the application.
+2. Navigate to the 'Add Ride' section.
+3. Fill in the details such as ride name, type, duration, and other necessary fields.
+4. Click on the 'Submit' button to save the ride.
 
-Get ready to pedal through the stunning views and vibrant cities of Taiwan!
+## Customization Guide
+- To customize the ride details or settings, access the configuration files located in the `config/` directory.
+- Modify the parameters in the `settings.json` or equivalent configuration file as needed.
 
-## How to Use
-1. View your website at: https://bacanijesse.github.io/essejintv/
-2. Customize the content in `index.html` with your actual routes and stories
-3. Update `styles.css` to match your preferred colors and design
-
-## Next Steps
-- [ ] Enable GitHub Pages in repository settings
-- [ ] Add your email address in the Contact section
-- [ ] Create individual blog post pages
-- [ ] Add photos and route maps
-- [ ] Connect your custom domain when ready
+## Future Roadmap
+- Implement user authentication system.
+- Add a feature for ride reviews and ratings.
+- Create an improved UI/UX design based on user feedback.
+- Explore integration with external ride management services.
