@@ -37,5 +37,18 @@
     "gpxFile": "gpx/weekend-adventure.gpx",
     "photos": ["photos/weekend-adventure1.jpg", "photos/weekend-adventure2.jpg"],
     "tags": ["weekend", "friends", "fun"]
+  },
+  {
+    "id": 4,
+    "country": "Philippines",
+    "cover": "https://placehold.co/600x220?text=Uploaded+GPX+Ride",
+    "title": "Uploaded GPX Ride",
+    "date": "2026-02-18",
+    "distance": 4.17,
+    "elevation": 44,
+    "description": "Ride imported from uploaded GPX file.",
+    "gpxFile": "gpx/02_18_2026_16_12/activity_21904385848.gpx",
+    "photos": [],
+    "tags": ["gpx", "imported"]
   }
 ]
