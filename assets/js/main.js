@@ -43,10 +43,12 @@ document.addEventListener("DOMContentLoaded", function () {
   };
   let latestSummaryMetrics = null;
 
+  // Maps legend metric names to the internal metric key format used in data objects.
   function metricDataKey(metric) {
     return metric === "heart-rate" ? "heartRate" : metric;
   }
 
+  // Computes great-circle distance between two latitude/longitude points in meters.
   function haversineDistanceMeters(lat1, lon1, lat2, lon2) {
     const earthRadiusMeters = 6371000;
     const toRadians = value => (value * Math.PI) / 180;
@@ -63,6 +65,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return 2 * earthRadiusMeters * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
 
+  // Finds the first numeric XML descendant value that matches a local tag name.
   function getFirstTagValueByLocalName(element, localName) {
     const descendants = element.getElementsByTagName("*");
 
@@ -81,6 +84,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return null;
   }
 
+  // Returns an emoji flag for supported countries used in card titles.
   function getCountryFlag(country) {
     const normalized = (country || "").toLowerCase();
 
@@ -95,6 +99,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return "🌍";
   }
 
+  // Builds a display-friendly ride name from file path or ride title fallback.
   function getRideDisplayName(ride) {
     const filePath = getPrimaryRideFilePath(ride);
 
@@ -112,6 +117,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return ride.title || "Ride";
   }
 
+  // Collects and normalizes all GPX file path fields attached to a ride object.
   function getRideFilePaths(ride) {
     if (!ride || typeof ride !== "object") {
       return [];
@@ -137,11 +143,13 @@ document.addEventListener("DOMContentLoaded", function () {
     return uniqueValues.filter(path => /\.gpx$/i.test(path));
   }
 
+  // Chooses the primary GPX path for a ride (first discovered file path).
   function getPrimaryRideFilePath(ride) {
     const paths = getRideFilePaths(ride);
     return paths.length > 0 ? paths[0] : null;
   }
 
+  // Extracts file extension/format from a path while ignoring query/hash suffixes.
   function getFileFormat(filePath) {
     if (typeof filePath !== "string") {
       return "";
@@ -152,6 +160,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return extensionMatch ? extensionMatch[1].toLowerCase() : "";
   }
 
+  // Parses folder names like MM_DD_YYYY... into an ISO date string.
   function parseFolderDate(folderName) {
     const folderMatch = typeof folderName === "string"
       ? folderName.match(/^(\d{2})_(\d{2})_(\d{4})/)
@@ -165,6 +174,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return `${year}-${month}-${day}`;
   }
 
+  // Parses directory listing HTML and returns raw href entries.
   function extractDirectoryLinksFromHtml(htmlText) {
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlText, "text/html");
@@ -175,6 +185,7 @@ document.addEventListener("DOMContentLoaded", function () {
       .filter(href => href && href !== "../");
   }
 
+  // Fetches and parses a server directory listing for a given path.
   async function fetchDirectoryListing(pathPrefix) {
     const response = await fetch(pathPrefix, { cache: "no-store" });
 
@@ -186,6 +197,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return extractDirectoryLinksFromHtml(htmlText);
   }
 
+  // Creates a normalized ride object from an auto-discovered GPX folder/file.
   function createAutoDiscoveredRide(folderName, filePath, idValue) {
     const discoveredDate = parseFolderDate(folderName) || "2026-02-18";
 
@@ -206,6 +218,7 @@ document.addEventListener("DOMContentLoaded", function () {
     };
   }
 
+  // Discovers GPX subfolders and generates one auto-ride entry per folder.
   async function discoverRidesFromGpxFolders() {
     const folderLinks = await fetchDirectoryListing("gpx/");
     const folderNames = folderLinks
@@ -249,6 +262,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return discoveredRides;
   }
 
+  // Toggles section visibility when the contact-only focus mode is enabled.
   function setContactFocusMode(isContactMode) {
     Object.entries(sectionMap).forEach(([sectionKey, sectionNode]) => {
       if (!sectionNode) {
@@ -263,6 +277,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  // Extracts a YouTube video ID from supported URL formats.
   function extractYouTubeVideoId(urlValue) {
     if (typeof urlValue !== "string" || !urlValue.trim()) {
       return null;
@@ -295,10 +310,12 @@ document.addEventListener("DOMContentLoaded", function () {
     return null;
   }
 
+  // Detects whether the viewport is in mobile layout range.
   function isMobileView() {
     return window.matchMedia("(max-width: 900px)").matches;
   }
 
+  // Lazily creates and returns the reusable ride video modal structure.
   function ensureVideoModal() {
     if (videoModal) {
       return videoModal;
@@ -359,6 +376,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return videoModal;
   }
 
+  // Opens the video modal and loads the selected ride's YouTube embed.
   function openRideVideo(ride, youtubeUrl) {
     if (isMobileView()) {
       window.open(youtubeUrl, "_blank", "noopener,noreferrer");
@@ -388,6 +406,7 @@ document.addEventListener("DOMContentLoaded", function () {
     document.body.classList.add("modal-open");
   }
 
+  // Parses XML text and throws a labeled error when parsing fails.
   function parseXmlDocument(xmlText, formatLabel) {
     const parser = new DOMParser();
     const xml = parser.parseFromString(xmlText, "application/xml");
@@ -400,6 +419,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return xml;
   }
 
+  // Converts raw trackpoint objects into normalized metric series and route data.
   function buildMetricsFromTrackPoints(points, formatLabel) {
     if (!Array.isArray(points) || points.length < 2) {
       throw new Error(`${formatLabel} has too few track points.`);
@@ -508,6 +528,7 @@ document.addEventListener("DOMContentLoaded", function () {
     };
   }
 
+  // Parses GPX XML content and builds graph-ready ride metrics.
   function parseGpxMetrics(gpxText) {
     const xml = parseXmlDocument(gpxText, "GPX");
     const trackPoints = Array.from(xml.getElementsByTagName("trkpt"));
@@ -533,6 +554,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return buildMetricsFromTrackPoints(points, "GPX");
   }
 
+  // Loads a file by path and dispatches to the supported parser by file format.
   async function parseMetricsFromFile(filePath) {
     const format = getFileFormat(filePath);
 
@@ -550,6 +572,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return parseGpxMetrics(fileText);
   }
 
+  // Counts valid numeric entries in a metric series.
   function countFiniteValues(values) {
     if (!Array.isArray(values)) {
       return 0;
@@ -558,6 +581,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return values.reduce((count, value) => (Number.isFinite(value) ? count + 1 : count), 0);
   }
 
+  // Chooses the strongest metric series across multiple sources for one key.
   function selectBestSeries(metricsList, key) {
     const candidates = metricsList
       .map(metrics => ({
@@ -582,6 +606,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return candidates[0].values;
   }
 
+  // Merges multiple parsed metric sources into one consolidated metrics object.
   function mergeMetricsFromSources(metricsList) {
     if (!Array.isArray(metricsList) || metricsList.length === 0) {
       return null;
@@ -634,6 +659,7 @@ document.addEventListener("DOMContentLoaded", function () {
     };
   }
 
+  // Returns parsed metrics for one file path using cache and in-flight dedupe.
   async function getMetricsForFilePath(filePath) {
     let metrics = activityMetricsCache.get(filePath);
 
@@ -661,6 +687,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return metrics;
   }
 
+  // Maps coarse coordinates to a supported country label.
   function detectCountryFromCoordinates(latitude, longitude) {
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
       return null;
@@ -680,6 +707,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return null;
   }
 
+  // Derives ride country from route/location metrics.
   function detectCountryFromMetrics(metrics) {
     if (!metrics) {
       return null;
@@ -690,6 +718,7 @@ document.addEventListener("DOMContentLoaded", function () {
       || null;
   }
 
+  // Computes min/max from a metric array while ignoring invalid entries.
   function getMinMax(values) {
     if (!Array.isArray(values)) {
       return null;
@@ -707,6 +736,7 @@ document.addEventListener("DOMContentLoaded", function () {
     };
   }
 
+  // Normalizes a metric array to the 0..1 range using its own min/max.
   function normalizeValues(values) {
     const minMax = getMinMax(values);
 
@@ -723,6 +753,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return values.map(value => (Number.isFinite(value) ? (value - minMax.min) / range : null));
   }
 
+  // Normalizes values to 0..1 using a zero-based lower bound.
   function normalizeValuesFromZero(values) {
     const valid = values.filter(value => Number.isFinite(value));
 
@@ -739,6 +770,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return values.map(value => (Number.isFinite(value) ? value / maxValue : null));
   }
 
+  // Draws one polyline series on the chart canvas from normalized values.
   function drawSeries(ctx, normalizedValues, color, plotX, plotY, plotWidth, plotHeight) {
     const validCount = normalizedValues.filter(value => value !== null).length;
 
@@ -795,6 +827,7 @@ document.addEventListener("DOMContentLoaded", function () {
     ctx.stroke();
   }
 
+  // Renders the combined multi-metric chart including axes, grid, and series.
   function drawCombinedGraph(canvas, metrics, visibleSeries = { elevation: true, speed: true, heartRate: true, temperature: true, distance: true }) {
     const ctx = canvas.getContext("2d");
     const width = canvas.width;
@@ -947,6 +980,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   }
 
+  // Updates legend labels with the current min-max ranges for each metric.
   function updateStatLegend(panel, metrics) {
     const elevationRange = getMinMax(metrics.elevation);
     const speedRange = getMinMax(metrics.speed);
@@ -994,6 +1028,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (caloriesInfo) caloriesInfo.textContent = `Calories: ${caloriesText}`;
   }
 
+  // Lazily creates and returns the reusable metrics modal and event wiring.
   function ensureMetricsModal() {
     if (metricsModal) {
       return metricsModal;
@@ -1024,6 +1059,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const modalPanel = backdrop.querySelector(".metrics-modal");
     const closeButton = backdrop.querySelector(".metrics-close-btn");
 
+    // Hides the metrics modal and restores document scroll behavior.
     function closeModal() {
       backdrop.hidden = true;
       document.documentElement.classList.remove("modal-open");
@@ -1064,6 +1100,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const legendButtons = Array.from(backdrop.querySelectorAll(".legend-item"));
 
+    // Syncs legend button visual state with enabled/disabled metric toggles.
     function updateLegendVisualState() {
       legendButtons.forEach(button => {
         const metric = button.dataset.metric;
@@ -1120,6 +1157,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return metricsModal;
   }
 
+  // Opens the metrics modal for a ride and loads its chart/map content.
   async function openMetricsModal(ride) {
     const modal = ensureMetricsModal();
     const panel = modal.backdrop.querySelector(".metrics-modal");
@@ -1155,6 +1193,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
+  // Renders the ride route on a Leaflet map inside the metrics modal.
   function renderMetricsMap(panel, metrics) {
     if (!metricsModal || !panel || !metrics || !Array.isArray(metrics.route) || metrics.route.length === 0) {
       return;
@@ -1193,6 +1232,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  // Loads ride metrics then renders chart, map, and legend into the modal.
   async function loadAndRenderMetrics(panel, ride) {
     const statusNode = panel.querySelector(".metrics-status");
     const canvas = panel.querySelector("canvas");
@@ -1237,6 +1277,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
+  // Returns the arithmetic mean of valid numbers in a series.
   function averageFinite(values) {
     const valid = values.filter(value => Number.isFinite(value));
 
@@ -1248,6 +1289,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return sum / valid.length;
   }
 
+  // Returns merged metrics for a ride with multi-file caching and dedupe.
   async function getRideMetrics(ride) {
     const rideFilePaths = getRideFilePaths(ride);
 
@@ -1297,6 +1339,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return mergedMetrics;
   }
 
+  // Checks whether a ride still needs background enrichment fields.
   function shouldEnrichRideMetrics(ride) {
     if (!ride || typeof ride !== "object") {
       return false;
@@ -1310,6 +1353,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return missingCountry || missingTemperature || missingDistance || missingElevation;
   }
 
+  // Background-enriches rides with detected country and missing summary fields.
   async function enrichRideCountries(rides) {
     let hasUpdates = false;
 
@@ -1381,6 +1425,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return hasUpdates;
   }
 
+  // Builds and renders the large summary graph for selected country/period.
   async function renderUploadedGraph() {
     if (!uploadedGraphSection || !uploadedGraphCanvas) {
       return;
@@ -1554,6 +1599,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
+  // Refreshes active/inactive appearance of summary legend toggle buttons.
   function updateSummaryLegendVisualState() {
     summaryLegendButtons.forEach(button => {
       const metric = button.dataset.metric;
@@ -1581,6 +1627,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
 
+  // Creates one interactive ride card element for the grid.
   function createRideCard(ride) {
     const card = document.createElement("div");
     card.className = "card";
@@ -1636,6 +1683,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return card;
   }
 
+  // Renders the paginated ride card grid for the current country filter.
   function renderRides() {
     if (!container) return;
 
@@ -1801,6 +1849,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   /* ===== LOAD RIDES ===== */
+  // Loads rides from auto-discovery first, then falls back to rides.json.
   async function loadRidesData() {
     let discoveredRides = [];
 
