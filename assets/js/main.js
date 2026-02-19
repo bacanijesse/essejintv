@@ -1,5 +1,5 @@
 // LOAD RIDES
-fetch("./data/rides.json")
+fetch("data/rides.json")
   .then(res => res.json())
   .then(rides => {
     const container = document.getElementById("rides-grid");
@@ -30,9 +30,7 @@ fetch("./data/rides.json")
 const toggleBtn = document.getElementById("themeToggle");
 const icon = document.getElementById("themeIcon");
 
-if (!toggleBtn || !icon) {
-  console.warn("Theme toggle not found.");
-} else {
+if (toggleBtn && icon) {
 
   const savedTheme = localStorage.getItem("theme");
 
