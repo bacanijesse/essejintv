@@ -922,27 +922,42 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   async function enrichRideCountries(rides) {
-    for (const ride of rides) {
+    const metricPromises = rides.map(async ride => {
       if (!ride || !ride.gpxFile) {
-        continue;
+        return { ride, metrics: null, error: null };
       }
 
       try {
         const metrics = await getRideMetrics(ride);
-        const detectedCountry = detectCountryFromMetrics(metrics);
-
-        if (detectedCountry) {
-          ride.country = detectedCountry;
-        }
-
-        const avgTemperature = averageFinite(metrics.temperature);
-        if (Number.isFinite(avgTemperature)) {
-          ride.airTemperature = Number(avgTemperature.toFixed(1));
-        }
+        return { ride, metrics, error: null };
       } catch (error) {
-        console.warn("Country detection skipped for ride:", ride.title, error);
+        return { ride, metrics: null, error };
       }
-    }
+    });
+
+    const results = await Promise.all(metricPromises);
+
+    results.forEach(({ ride, metrics, error }) => {
+      if (error) {
+        console.warn("Country detection skipped for ride:", ride?.title, error);
+        return;
+      }
+
+      if (!ride || !metrics) {
+        return;
+      }
+
+      const detectedCountry = detectCountryFromMetrics(metrics);
+
+      if (detectedCountry) {
+        ride.country = detectedCountry;
+      }
+
+      const avgTemperature = averageFinite(metrics.temperature);
+      if (Number.isFinite(avgTemperature)) {
+        ride.airTemperature = Number(avgTemperature.toFixed(1));
+      }
+    });
   }
 
   async function renderUploadedGraph() {
@@ -1044,14 +1059,43 @@ document.addEventListener("DOMContentLoaded", function () {
       buckets = createMonthBuckets(12);
     }
 
-    for (const ride of rides) {
+    const rideMetricResults = await Promise.all(rides.map(async ride => {
       const rideDate = toLocalDate(ride.date);
       const rideDistance = Number.parseFloat(ride.distance);
       const rideElevation = Number.parseFloat(ride.elevation);
 
       if (!rideDate) {
+        return null;
+      }
+
+      let metrics = null;
+
+      try {
+        metrics = await getRideMetrics(ride);
+      } catch (error) {
+        console.warn("Summary GPX load skipped for ride:", ride.title, error);
+      }
+
+      return {
+        ride,
+        rideDate,
+        rideDistance,
+        rideElevation,
+        metrics,
+      };
+    }));
+
+    for (const result of rideMetricResults) {
+      if (!result) {
         continue;
       }
+
+      const {
+        rideDate,
+        rideDistance,
+        rideElevation,
+        metrics,
+      } = result;
 
       const bucket = buckets.find(item => rideDate >= item.startDate && rideDate <= item.endDate);
 
@@ -1067,31 +1111,25 @@ document.addEventListener("DOMContentLoaded", function () {
         bucket.elevation += rideElevation;
       }
 
-      try {
-        const metrics = await getRideMetrics(ride);
+      if (metrics) {
+        const avgSpeed = averageFinite(metrics.speed);
+        const avgHeartRate = averageFinite(metrics.heartRate);
+        const avgTemperature = averageFinite(metrics.temperature);
 
-        if (metrics) {
-          const avgSpeed = averageFinite(metrics.speed);
-          const avgHeartRate = averageFinite(metrics.heartRate);
-          const avgTemperature = averageFinite(metrics.temperature);
-
-          if (Number.isFinite(avgSpeed)) {
-            bucket.speedSum += avgSpeed;
-            bucket.speedCount += 1;
-          }
-
-          if (Number.isFinite(avgHeartRate)) {
-            bucket.heartRateSum += avgHeartRate;
-            bucket.heartRateCount += 1;
-          }
-
-          if (Number.isFinite(avgTemperature)) {
-            bucket.temperatureSum += avgTemperature;
-            bucket.temperatureCount += 1;
-          }
+        if (Number.isFinite(avgSpeed)) {
+          bucket.speedSum += avgSpeed;
+          bucket.speedCount += 1;
         }
-      } catch (error) {
-        console.warn("Summary GPX load skipped for ride:", ride.title, error);
+
+        if (Number.isFinite(avgHeartRate)) {
+          bucket.heartRateSum += avgHeartRate;
+          bucket.heartRateCount += 1;
+        }
+
+        if (Number.isFinite(avgTemperature)) {
+          bucket.temperatureSum += avgTemperature;
+          bucket.temperatureCount += 1;
+        }
       }
     }
 

@@ -5,6 +5,7 @@
   --card-border: #e0e0e0;
   --shadow: rgba(0,0,0,0.08);
   --accent: #4361ee;
+  --section-line: #111111;
   --parallax-image: url("https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=2000&q=80");
   --bg-overlay: rgba(240, 242, 245, 0.78);
 }
@@ -16,6 +17,7 @@
   --card-border: #2a2a4a;
   --shadow: rgba(0,0,0,0.3);
   --accent: #4cc9f0;
+  --section-line: #ffffff;
   --bg-overlay: rgba(26, 26, 46, 0.82);
 }
 
@@ -62,9 +64,15 @@ h1 {
 }
 
 .site-logo {
-  height: 64px;
+  height: 110px;
   width: auto;
   display: block;
+}
+
+@media (max-width: 900px) {
+  .site-logo {
+    height: 64px;
+  }
 }
 
 .top-menu {
@@ -132,10 +140,30 @@ main {
 
 .page-section {
   margin-bottom: 1.25rem;
+  position: relative;
+  padding-bottom: 1.1rem;
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 700px;
 }
 
 .page-section[hidden] {
   display: none !important;
+}
+
+.page-section::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--section-line);
+  opacity: 0.95;
+  border-radius: 999px;
+}
+
+.page-section:last-of-type::after {
+  display: none;
 }
 
 .ad-section {
@@ -595,9 +623,9 @@ footer {
 }
 
 .testimonial-card {
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  border-radius: 10px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
   padding: 0.8rem;
 }
 
