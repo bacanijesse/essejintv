@@ -3,36 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cycling Dashboard</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="src/css/styles.css">
+    <title>Your Title Here</title>
 </head>
 <body>
-    <header>
-        <h1>Cycling Dashboard</h1>
-        <button id="mode-toggle">Toggle Dark/Light Mode</button>
-    </header>
-    <main>
-        <section id="ride-cards">
-            <div class="ride-card">
-                <h2>Ride Title 1</h2>
-                <p>Date: 2026-02-19</p>
-                <p>Distance: 15 km</p>
-                <p>Time: 1 hour</p>
-            </div>
-            <div class="ride-card">
-                <h2>Ride Title 2</h2>
-                <p>Date: 2026-02-18</p>
-                <p>Distance: 20 km</p>
-                <p>Time: 1.5 hours</p>
-            </div>
-            <!-- More ride cards can be added here -->
-        </section>
-    </main>
-    <script>
-        const toggle = document.getElementById('mode-toggle');
-        toggle.addEventListener('click', () => {
-            document.body.classList.toggle('dark-mode');
-        });
-    </script>
+    <div class="rides-container">
+        <!-- Dynamic ride loading will happen here -->
+    </div>
+    <script src="src/js/script.js"></script>
 </body>
 </html>
