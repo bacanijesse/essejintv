@@ -1,73 +1,29 @@
-document.addEventListener("DOMContentLoaded", function () {
+rides.forEach(ride => {
+  const card = document.createElement("div");
+  card.className = "card";
 
-  /* =========================
-     LOAD RIDES FROM JSON
-  ========================== */
+  const link = document.createElement("a");
+  link.href = `rides/ride.html?id=${ride.id}`;
 
-  fetch("./data/rides.json")
-    .then(response => response.json())
-    .then(rides => {
-      const container = document.getElementById("rides-grid");
+  const img = document.createElement("img");
+  img.src = ride.cover;
+  img.loading = "lazy";
 
-      if (!container) return;
+  link.appendChild(img);
 
-      rides.forEach(ride => {
-        const card = document.createElement("div");
-        card.className = "card";
+  const content = document.createElement("div");
+  content.className = "card-content";
 
-        card.innerHTML = `
-          <a href="rides/ride.html?id=${ride.id}">
-            <img src="${ride.cover}" loading="lazy">
-          </a>
-          <div class="card-content">
-            <h2>${ride.title}</h2>
-            <div class="stats">
-              ${ride.distance} km • ${ride.elevation} m<br>
-              ${ride.date}
-            </div>
-          </div>
-        `;
+  content.innerHTML = `
+    <h2>${ride.title}</h2>
+    <div class="stats">
+      ${ride.distance} km • ${ride.elevation} m<br>
+      ${ride.date}
+    </div>
+  `;
 
-        container.appendChild(card);
-      });
-    })
-    .catch(error => {
-      console.error("Error loading rides:", error);
-    });
+  card.appendChild(link);
+  card.appendChild(content);
 
-
-  /* =========================
-     THEME TOGGLE SYSTEM
-  ========================== */
-
-  const toggleBtn = document.getElementById("themeToggle");
-  const icon = document.getElementById("themeIcon");
-
-  if (!toggleBtn || !icon) return;
-
-  // Load saved theme
-  const savedTheme = localStorage.getItem("theme");
-
-  if (savedTheme === "dark") {
-    document.documentElement.setAttribute("data-theme", "dark");
-    icon.textContent = "☀️";
-  } else {
-    icon.textContent = "🌙";
-  }
-
-  // Toggle click
-  toggleBtn.addEventListener("click", function () {
-    const current = document.documentElement.getAttribute("data-theme");
-
-    if (current === "dark") {
-      document.documentElement.removeAttribute("data-theme");
-      localStorage.setItem("theme", "light");
-      icon.textContent = "🌙";
-    } else {
-      document.documentElement.setAttribute("data-theme", "dark");
-      localStorage.setItem("theme", "dark");
-      icon.textContent = "☀️";
-    }
-  });
-
+  container.appendChild(card);
 });
