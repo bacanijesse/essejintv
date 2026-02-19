@@ -21,6 +21,7 @@ document.addEventListener("DOMContentLoaded", function () {
     summary: document.getElementById("summary-section"),
     cards: document.getElementById("cards-section"),
     testimonials: document.getElementById("testimonials-section"),
+    donation: document.getElementById("donation-section"),
     contact: document.getElementById("contact-section"),
     about: document.getElementById("about-section"),
   };
@@ -1823,7 +1824,7 @@ document.addEventListener("DOMContentLoaded", function () {
       return discoveredRides;
     }
 
-    const response = await fetch("data/rides.json");
+    const response = await fetch(`data/rides.json?v=${Date.now()}`, { cache: "no-store" });
     if (!response.ok) {
       throw new Error("Failed to load rides.json");
     }
