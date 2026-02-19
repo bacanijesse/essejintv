@@ -1,6 +1,9 @@
 document.addEventListener("DOMContentLoaded", function () {
+  loadRides();
+  initTheme();
+});
 
-  /* ===== LOAD RIDES ===== */
+function loadRides() {
   fetch("data/rides.json")
     .then(res => {
       if (!res.ok) {
@@ -39,8 +42,9 @@ document.addEventListener("DOMContentLoaded", function () {
         container.innerHTML = `<p class="error-message">Failed to load rides. Please try again later.</p>`;
       }
     });
+}
 
-  /* ===== THEME SYSTEM ===== */
+function initTheme() {
   const toggleBtn = document.getElementById("themeToggle");
   const icon = document.getElementById("themeIcon");
 
@@ -71,5 +75,4 @@ document.addEventListener("DOMContentLoaded", function () {
       icon.textContent = "☀️";
     }
   });
-
-});
+}
