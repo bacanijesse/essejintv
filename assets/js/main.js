@@ -2,8 +2,10 @@ document.addEventListener("DOMContentLoaded", function () {
   let allRides = [];
   let selectedCountry = "all";
   const activityMetricsCache = new Map();
+  const activityMetricsPromiseCache = new Map();
   const mergedRideMetricsCache = new Map();
-  let fitParserModulePromise = null;
+  const mergedRideMetricsPromiseCache = new Map();
+  const summaryRenderCache = new Map();
   let metricsModal = null;
   let videoModal = null;
 
@@ -37,7 +39,6 @@ document.addEventListener("DOMContentLoaded", function () {
     heartRate: true,
     temperature: true,
     distance: true,
-    calories: true,
   };
   let latestSummaryMetrics = null;
 
@@ -104,7 +105,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const fileName = parts[parts.length - 1] || "";
 
     if (fileName) {
-      return fileName.replace(/\.(gpx|tcx|kml|fit|csv)$/i, "");
+      return fileName.replace(/\.gpx$/i, "");
     }
 
     return ride.title || "Ride";
@@ -132,13 +133,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     const uniqueValues = Array.from(new Set(values));
-    const gpxOnly = uniqueValues.filter(path => /\.gpx$/i.test(path));
-
-    if (gpxOnly.length > 0) {
-      return gpxOnly;
-    }
-
-    return uniqueValues;
+    return uniqueValues.filter(path => /\.gpx$/i.test(path));
   }
 
   function getPrimaryRideFilePath(ride) {
@@ -154,23 +149,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const normalizedPath = filePath.split("?")[0].split("#")[0];
     const extensionMatch = normalizedPath.match(/\.([a-z0-9]+)$/i);
     return extensionMatch ? extensionMatch[1].toLowerCase() : "";
-  }
-
-  function normalizeActivityKey(fileName) {
-    if (typeof fileName !== "string" || !fileName.trim()) {
-      return "activity";
-    }
-
-    const numericMatch = fileName.match(/(\d{6,})/);
-    if (numericMatch) {
-      return numericMatch[1];
-    }
-
-    return fileName
-      .replace(/\.(gpx|tcx|kml|fit|csv)$/i, "")
-      .replace(/[^a-z0-9]+/gi, "_")
-      .replace(/^_+|_+$/g, "")
-      .toLowerCase() || "activity";
   }
 
   function parseFolderDate(folderName) {
@@ -207,7 +185,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return extractDirectoryLinksFromHtml(htmlText);
   }
 
-  function createAutoDiscoveredRide(folderName, groupKey, filePaths, idValue) {
+  function createAutoDiscoveredRide(folderName, filePath, idValue) {
     const discoveredDate = parseFolderDate(folderName) || "2026-02-18";
 
     return {
@@ -215,15 +193,15 @@ document.addEventListener("DOMContentLoaded", function () {
       country: "Taiwan",
       cover: "https://placehold.co/600x220?text=Auto+Discovered+Ride",
       thumbnail: "https://placehold.co/600x220?text=Auto+Discovered+Ride",
-      title: `Ride ${groupKey}`,
+      title: `Ride ${folderName}`,
       date: discoveredDate,
       distance: 0,
       elevation: 0,
       description: `Auto-discovered ride from folder ${folderName}`,
-      dataFiles: filePaths,
+      gpxFile: filePath,
       youtubeUrl: "https://www.youtube.com/results?search_query=cycling+ride+taiwan",
       photos: [],
-      tags: ["auto", "merged", "imported"],
+      tags: ["auto", "imported"],
     };
   }
 
@@ -255,35 +233,16 @@ document.addEventListener("DOMContentLoaded", function () {
       const { folderName, entryLinks } = folderEntry;
 
       const activityFiles = entryLinks
-        .filter(name => /\.(gpx|tcx|kml|fit|csv)$/i.test(name))
+        .filter(name => /\.gpx$/i.test(name))
         .map(name => `gpx/${folderName}/${name.replace(/^\/+/, "")}`);
 
       if (activityFiles.length === 0) {
         continue;
       }
 
-      const groupedByActivity = new Map();
-
-      activityFiles.forEach(filePath => {
-        const parts = filePath.split("/");
-        const fileName = parts[parts.length - 1] || "";
-        const key = normalizeActivityKey(fileName);
-
-        if (!groupedByActivity.has(key)) {
-          groupedByActivity.set(key, []);
-        }
-
-        groupedByActivity.get(key).push(filePath);
-      });
-
-      groupedByActivity.forEach((files, groupKey) => {
-        const sortedFiles = files.sort();
-        const gpxFiles = sortedFiles.filter(filePath => /\.gpx$/i.test(filePath));
-        const selectedFiles = gpxFiles.length > 0 ? gpxFiles : sortedFiles;
-
-        discoveredRides.push(createAutoDiscoveredRide(folderName, groupKey, selectedFiles, generatedId));
-        generatedId += 1;
-      });
+      const sortedFiles = activityFiles.slice().sort();
+      discoveredRides.push(createAutoDiscoveredRide(folderName, sortedFiles[0], generatedId));
+      generatedId += 1;
     }
 
     return discoveredRides;
@@ -379,10 +338,8 @@ document.addEventListener("DOMContentLoaded", function () {
       closeButton.addEventListener("click", closeVideoModal);
     }
 
-    backdrop.addEventListener("click", function (event) {
-      if (event.target === backdrop) {
-        closeVideoModal();
-      }
+    backdrop.addEventListener("click", function () {
+      return;
     });
 
     window.addEventListener("keydown", function (event) {
@@ -550,36 +507,6 @@ document.addEventListener("DOMContentLoaded", function () {
     };
   }
 
-  function buildMetricsFromSummaryValues(summaryValues) {
-    const elevationValue = Number.parseFloat(summaryValues.elevation);
-    const speedValue = Number.parseFloat(summaryValues.speed);
-    const heartRateValue = Number.parseFloat(summaryValues.heartRate);
-    const temperatureValue = Number.parseFloat(summaryValues.temperature);
-    const distanceValue = Number.parseFloat(summaryValues.distance);
-    const caloriesValue = Number.parseFloat(summaryValues.calories);
-
-    const hasAnyMetric = [elevationValue, speedValue, heartRateValue, temperatureValue, distanceValue, caloriesValue]
-      .some(value => Number.isFinite(value));
-
-    if (!hasAnyMetric) {
-      throw new Error("CSV does not contain supported graph metrics.");
-    }
-
-    return {
-      elevation: [Number.isFinite(elevationValue) ? elevationValue : null],
-      speed: [Number.isFinite(speedValue) ? speedValue : null],
-      heartRate: [Number.isFinite(heartRateValue) ? heartRateValue : null],
-      temperature: [Number.isFinite(temperatureValue) ? temperatureValue : null],
-      distance: [Number.isFinite(distanceValue) ? distanceValue : null],
-      calories: [Number.isFinite(caloriesValue) ? caloriesValue : null],
-      firstLatitude: null,
-      firstLongitude: null,
-      averageLatitude: null,
-      averageLongitude: null,
-      route: [],
-    };
-  }
-
   function parseGpxMetrics(gpxText) {
     const xml = parseXmlDocument(gpxText, "GPX");
     const trackPoints = Array.from(xml.getElementsByTagName("trkpt"));
@@ -605,209 +532,11 @@ document.addEventListener("DOMContentLoaded", function () {
     return buildMetricsFromTrackPoints(points, "GPX");
   }
 
-  function parseTcxMetrics(tcxText) {
-    const xml = parseXmlDocument(tcxText, "TCX");
-    const trackPoints = Array.from(xml.getElementsByTagName("Trackpoint"));
-    const points = trackPoints.map(trackPoint => {
-      const latitude = getFirstTagValueByLocalName(trackPoint, "LatitudeDegrees");
-      const longitude = getFirstTagValueByLocalName(trackPoint, "LongitudeDegrees");
-      const speedMs = getFirstTagValueByLocalName(trackPoint, "Speed");
-
-      return {
-        latitude,
-        longitude,
-        elevation: getFirstTagValueByLocalName(trackPoint, "AltitudeMeters"),
-        timeValue: Date.parse(trackPoint.getElementsByTagName("Time")[0]?.textContent || ""),
-        speedKmh: Number.isFinite(speedMs) ? speedMs * 3.6 : null,
-        heartRate: getFirstTagValueByLocalName(trackPoint, "Value"),
-        temperature: getFirstTagValueByLocalName(trackPoint, "Temperature"),
-      };
-    });
-
-    return buildMetricsFromTrackPoints(points, "TCX");
-  }
-
-  function parseKmlMetrics(kmlText) {
-    const xml = parseXmlDocument(kmlText, "KML");
-    const trackPoints = [];
-    const gxTrack = xml.getElementsByTagName("gx:Track")[0] || xml.getElementsByTagName("Track")[0];
-
-    if (gxTrack) {
-      const whenNodes = Array.from(gxTrack.getElementsByTagName("when"));
-      const coordNodes = Array.from(gxTrack.getElementsByTagName("gx:coord"));
-
-      for (let index = 0; index < coordNodes.length; index += 1) {
-        const coordText = coordNodes[index]?.textContent?.trim() || "";
-        const [longitudeValue, latitudeValue, altitudeValue] = coordText.split(/\s+/).map(Number.parseFloat);
-
-        trackPoints.push({
-          latitude: latitudeValue,
-          longitude: longitudeValue,
-          elevation: altitudeValue,
-          timeValue: Date.parse(whenNodes[index]?.textContent || ""),
-          speedKmh: null,
-          heartRate: null,
-          temperature: null,
-        });
-      }
-    } else {
-      const coordinatesNode = xml.getElementsByTagName("coordinates")[0];
-      const rows = coordinatesNode?.textContent?.trim().split(/\s+/) || [];
-
-      rows.forEach(row => {
-        const [longitudeValue, latitudeValue, altitudeValue] = row.split(",").map(Number.parseFloat);
-
-        trackPoints.push({
-          latitude: latitudeValue,
-          longitude: longitudeValue,
-          elevation: altitudeValue,
-          timeValue: NaN,
-          speedKmh: null,
-          heartRate: null,
-          temperature: null,
-        });
-      });
-    }
-
-    return buildMetricsFromTrackPoints(trackPoints, "KML");
-  }
-
-  function parseCsvMetrics(csvText) {
-    const rows = csvText
-      .split(/\r?\n/)
-      .map(line => line.trim())
-      .filter(line => line.length > 0);
-
-    if (rows.length < 2) {
-      throw new Error("CSV has too few rows.");
-    }
-
-    const delimiter = rows[0].split(";").length > rows[0].split(",").length ? ";" : ",";
-    const headers = rows[0].split(delimiter).map(value => value.trim());
-    const normalizeHeader = value => value.toLowerCase().replace(/[^a-z0-9]/g, "");
-    const normalizedHeaders = headers.map(normalizeHeader);
-
-    const findIndex = candidates => normalizedHeaders.findIndex(header => candidates.includes(header));
-
-    const latitudeIndex = findIndex(["lat", "latitude", "latdeg", "latitudedegrees"]);
-    const longitudeIndex = findIndex(["lon", "lng", "long", "longitude", "longitudedegrees"]);
-    const elevationIndex = findIndex(["ele", "elevation", "alt", "altitude", "altitudemeters"]);
-    const timeIndex = findIndex(["time", "timestamp", "datetime", "date"]);
-    const speedIndex = findIndex(["speed", "speedkmh", "speedkph", "enhancedspeed"]);
-    const distanceIndex = findIndex(["distance", "distancekm", "distkm", "dist"]);
-    const caloriesIndex = findIndex(["calories", "kcal"]);
-    const heartRateIndex = findIndex(["hr", "heartrate", "heartratebpm", "heartratevalue", "heart_rate"]);
-    const temperatureIndex = findIndex(["temp", "temperature", "atemp", "airtemp", "airtemperature"]);
-    const avgSpeedIndex = findIndex(["avgspeed", "avgmovingspeed"]);
-    const avgHeartRateIndex = findIndex(["avghr", "avgheartrate", "avgheartratebpm"]);
-    const avgTemperatureIndex = findIndex(["avgtemperature", "avgtemp", "avgairtemperature"]);
-    const totalAscentIndex = findIndex(["totalascent", "elevationgain", "ascent"]);
-    const totalCaloriesIndex = findIndex(["calories", "kcal", "totalcalories"]);
-    const totalDistanceIndex = findIndex(["distance", "distancekm", "distkm", "totaldistance"]);
-
-    const speedHeader = speedIndex >= 0 ? headers[speedIndex].toLowerCase() : "";
-    const speedInMetersPerSecond = speedHeader.includes("m/s") || speedHeader.includes(" mps ");
-
-    const points = rows.slice(1).map(row => {
-      const columns = row.split(delimiter).map(value => value.trim());
-      const rawSpeed = speedIndex >= 0 ? Number.parseFloat(columns[speedIndex]) : null;
-      const rawDistance = distanceIndex >= 0 ? Number.parseFloat(columns[distanceIndex]) : null;
-
-      return {
-        latitude: latitudeIndex >= 0 ? Number.parseFloat(columns[latitudeIndex]) : null,
-        longitude: longitudeIndex >= 0 ? Number.parseFloat(columns[longitudeIndex]) : null,
-        elevation: elevationIndex >= 0 ? Number.parseFloat(columns[elevationIndex]) : null,
-        timeValue: timeIndex >= 0 ? Date.parse(columns[timeIndex]) : NaN,
-        distanceKm: Number.isFinite(rawDistance) ? rawDistance : null,
-        speedKmh: Number.isFinite(rawSpeed) ? (speedInMetersPerSecond ? rawSpeed * 3.6 : rawSpeed) : null,
-        calories: caloriesIndex >= 0 ? Number.parseFloat(columns[caloriesIndex]) : null,
-        heartRate: heartRateIndex >= 0 ? Number.parseFloat(columns[heartRateIndex]) : null,
-        temperature: temperatureIndex >= 0 ? Number.parseFloat(columns[temperatureIndex]) : null,
-      };
-    });
-
-    const hasCoordinateColumns = latitudeIndex >= 0 && longitudeIndex >= 0;
-
-    if (!hasCoordinateColumns) {
-      const summaryRow = rows.slice(1)
-        .map(row => row.split(delimiter).map(value => value.trim()))
-        .find(columns => (columns[0] || "").toLowerCase().includes("summary"))
-        || rows.slice(1).map(row => row.split(delimiter).map(value => value.trim()))[0];
-
-      return buildMetricsFromSummaryValues({
-        elevation: totalAscentIndex >= 0 ? summaryRow?.[totalAscentIndex] : null,
-        speed: avgSpeedIndex >= 0 ? summaryRow?.[avgSpeedIndex] : null,
-        heartRate: avgHeartRateIndex >= 0 ? summaryRow?.[avgHeartRateIndex] : null,
-        temperature: avgTemperatureIndex >= 0 ? summaryRow?.[avgTemperatureIndex] : null,
-        distance: totalDistanceIndex >= 0 ? summaryRow?.[totalDistanceIndex] : null,
-        calories: totalCaloriesIndex >= 0 ? summaryRow?.[totalCaloriesIndex] : null,
-      });
-    }
-
-    return buildMetricsFromTrackPoints(points, "CSV");
-  }
-
-  async function loadFitParserClass() {
-    if (!fitParserModulePromise) {
-      fitParserModulePromise = import("https://unpkg.com/fit-file-parser@2.3.3/dist/fit-parser.js")
-        .then(moduleValue => moduleValue.default || moduleValue.FitParser)
-        .catch(error => {
-          fitParserModulePromise = null;
-          throw error;
-        });
-    }
-
-    return fitParserModulePromise;
-  }
-
-  async function parseFitMetrics(arrayBuffer) {
-    const FitParser = await loadFitParserClass();
-    const fitParser = new FitParser({
-      force: true,
-      speedUnit: "km/h",
-      temperatureUnit: "celsius",
-      mode: "list",
-    });
-
-    const fitData = await fitParser.parseAsync(arrayBuffer);
-    const records = Array.isArray(fitData?.records) ? fitData.records : [];
-    const sessions = Array.isArray(fitData?.sessions) ? fitData.sessions : [];
-    const totalCalories = Number.parseFloat(sessions[0]?.total_calories);
-    const points = records.map(record => {
-      const latitude = Number.parseFloat(record.position_lat ?? record.positionLat);
-      const longitude = Number.parseFloat(record.position_long ?? record.positionLong ?? record.position_lng);
-      const speedKmh = Number.parseFloat(record.speed ?? record.enhanced_speed);
-
-      return {
-        latitude,
-        longitude,
-        elevation: Number.parseFloat(record.enhanced_altitude ?? record.altitude),
-        timeValue: Date.parse(record.timestamp),
-        distanceKm: Number.parseFloat(record.distance) / 1000,
-        speedKmh,
-        calories: Number.parseFloat(record.calories),
-        heartRate: Number.parseFloat(record.heart_rate),
-        temperature: Number.parseFloat(record.temperature),
-      };
-    });
-
-    const metrics = buildMetricsFromTrackPoints(points, "FIT");
-
-    if (Number.isFinite(totalCalories)) {
-      const hasCalories = Array.isArray(metrics.calories) && metrics.calories.some(value => Number.isFinite(value));
-      if (!hasCalories) {
-        metrics.calories = [totalCalories];
-      }
-    }
-
-    return metrics;
-  }
-
   async function parseMetricsFromFile(filePath) {
     const format = getFileFormat(filePath);
 
-    if (!["gpx", "tcx", "kml", "fit", "csv"].includes(format)) {
-      throw new Error("Unsupported activity file format.");
+    if (format !== "gpx") {
+      throw new Error("Only GPX files are supported.");
     }
 
     const response = await fetch(filePath);
@@ -816,26 +545,8 @@ document.addEventListener("DOMContentLoaded", function () {
       throw new Error("Unable to load activity file.");
     }
 
-    if (format === "fit") {
-      const fitBuffer = await response.arrayBuffer();
-      return parseFitMetrics(fitBuffer);
-    }
-
     const fileText = await response.text();
-
-    if (format === "gpx") {
-      return parseGpxMetrics(fileText);
-    }
-
-    if (format === "tcx") {
-      return parseTcxMetrics(fileText);
-    }
-
-    if (format === "kml") {
-      return parseKmlMetrics(fileText);
-    }
-
-    return parseCsvMetrics(fileText);
+    return parseGpxMetrics(fileText);
   }
 
   function countFiniteValues(values) {
@@ -926,8 +637,24 @@ document.addEventListener("DOMContentLoaded", function () {
     let metrics = activityMetricsCache.get(filePath);
 
     if (!metrics) {
-      metrics = await parseMetricsFromFile(filePath);
-      activityMetricsCache.set(filePath, metrics);
+      let pendingMetricsPromise = activityMetricsPromiseCache.get(filePath);
+
+      if (!pendingMetricsPromise) {
+        pendingMetricsPromise = parseMetricsFromFile(filePath)
+          .then(parsedMetrics => {
+            activityMetricsCache.set(filePath, parsedMetrics);
+            activityMetricsPromiseCache.delete(filePath);
+            return parsedMetrics;
+          })
+          .catch(error => {
+            activityMetricsPromiseCache.delete(filePath);
+            throw error;
+          });
+
+        activityMetricsPromiseCache.set(filePath, pendingMetricsPromise);
+      }
+
+      metrics = await pendingMetricsPromise;
     }
 
     return metrics;
@@ -963,6 +690,10 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function getMinMax(values) {
+    if (!Array.isArray(values)) {
+      return null;
+    }
+
     const valid = values.filter(value => Number.isFinite(value));
 
     if (valid.length === 0) {
@@ -1020,6 +751,13 @@ document.addEventListener("DOMContentLoaded", function () {
       const xStepSingle = normalizedValues.length > 1 ? plotWidth / (normalizedValues.length - 1) : 0;
       const x = plotX + pointIndex * xStepSingle;
       const y = plotY + (1 - pointValue) * plotHeight;
+
+      ctx.beginPath();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.8;
+      ctx.moveTo(plotX, y);
+      ctx.lineTo(plotX + plotWidth, y);
+      ctx.stroke();
 
       ctx.beginPath();
       ctx.fillStyle = color;
@@ -1316,7 +1054,7 @@ document.addEventListener("DOMContentLoaded", function () {
     backdrop.addEventListener("click", function (event) {
       const closeButton = event.target.closest(".metrics-close-btn");
 
-      if (closeButton || event.target === backdrop) {
+      if (closeButton) {
         event.preventDefault();
         event.stopPropagation();
         closeModal();
@@ -1533,24 +1271,37 @@ document.addEventListener("DOMContentLoaded", function () {
       return mergedMetrics;
     }
 
-    const sourceMetrics = [];
+    let pendingMergedPromise = mergedRideMetricsPromiseCache.get(mergeCacheKey);
 
-    for (const filePath of rideFilePaths) {
-      try {
-        const metrics = await getMetricsForFilePath(filePath);
-        if (metrics) {
-          sourceMetrics.push(metrics);
+    if (!pendingMergedPromise) {
+      pendingMergedPromise = Promise.all(rideFilePaths.map(async filePath => {
+        try {
+          return await getMetricsForFilePath(filePath);
+        } catch (error) {
+          console.warn("Skipped activity source:", filePath, error);
+          return null;
         }
-      } catch (error) {
-        console.warn("Skipped activity source:", filePath, error);
-      }
+      }))
+        .then(sourceMetrics => {
+          const validMetrics = sourceMetrics.filter(metrics => Boolean(metrics));
+          const merged = mergeMetricsFromSources(validMetrics);
+
+          if (merged) {
+            mergedRideMetricsCache.set(mergeCacheKey, merged);
+          }
+
+          mergedRideMetricsPromiseCache.delete(mergeCacheKey);
+          return merged;
+        })
+        .catch(error => {
+          mergedRideMetricsPromiseCache.delete(mergeCacheKey);
+          throw error;
+        });
+
+      mergedRideMetricsPromiseCache.set(mergeCacheKey, pendingMergedPromise);
     }
 
-    mergedMetrics = mergeMetricsFromSources(sourceMetrics);
-
-    if (mergedMetrics) {
-      mergedRideMetricsCache.set(mergeCacheKey, mergedMetrics);
-    }
+    mergedMetrics = await pendingMergedPromise;
 
     return mergedMetrics;
   }
@@ -1648,6 +1399,8 @@ document.addEventListener("DOMContentLoaded", function () {
       uploadedGraphStatus.textContent = "Loading cycling summary...";
     }
 
+    try {
+
     const rides = (Array.isArray(allRides) ? allRides : []).filter(ride => {
       if (selectedCountry === "all") {
         return true;
@@ -1655,7 +1408,52 @@ document.addEventListener("DOMContentLoaded", function () {
 
       return (ride.country || "").toLowerCase() === selectedCountry;
     });
+    const rideSignature = rides
+      .map(ride => [
+        ride.date || "",
+        ride.country || "",
+        ride.title || "",
+        Number.parseFloat(ride.distance) || 0,
+        Number.parseFloat(ride.elevation) || 0,
+        getPrimaryRideFilePath(ride) || "",
+      ].join("|"))
+      .join(";");
+    const summaryCacheKey = `${selectedCountry}::${selectedSummaryPeriod}::${rideSignature}`;
+    const cachedSummary = summaryRenderCache.get(summaryCacheKey);
+
+    if (cachedSummary) {
+      latestSummaryMetrics = cachedSummary.summaryMetrics;
+      drawCombinedGraph(uploadedGraphCanvas, cachedSummary.summaryMetrics, summaryVisibleSeries);
+      updateStatLegend(uploadedGraphSection, cachedSummary.summaryMetrics);
+
+      if (uploadedGraphStatus) {
+        uploadedGraphStatus.textContent = cachedSummary.statusText;
+      }
+
+      return;
+    }
+
     const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const periodStart = (() => {
+      if (selectedSummaryPeriod === "weekly") {
+        const start = new Date(today);
+        start.setDate(today.getDate() - 6);
+        return start;
+      }
+
+      if (selectedSummaryPeriod === "monthly") {
+        const start = new Date(today);
+        start.setDate(today.getDate() - 27);
+        return start;
+      }
+
+      if (selectedSummaryPeriod === "half") {
+        return new Date(today.getFullYear(), today.getMonth() - 5, 1);
+      }
+
+      return new Date(today.getFullYear(), today.getMonth() - 11, 1);
+    })();
 
     const toLocalDate = value => {
       if (typeof value !== "string") {
@@ -1666,89 +1464,34 @@ document.addEventListener("DOMContentLoaded", function () {
       return Number.isNaN(parsed.getTime()) ? null : parsed;
     };
 
-    const formatDayLabel = date => `${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}`;
-    const formatMonthLabel = date => date.toLocaleString("en-US", { month: "short" });
+    const ridesInPeriod = rides
+      .map((ride, index) => ({ ride, index, rideDate: toLocalDate(ride.date) }))
+      .filter(item => item.rideDate && item.rideDate >= periodStart && item.rideDate <= today)
+      .sort((a, b) => {
+        const dateDelta = a.rideDate.getTime() - b.rideDate.getTime();
+        return dateDelta !== 0 ? dateDelta : a.index - b.index;
+      });
 
-    const createDayBuckets = (totalDays, bucketDays) => {
-      const bucketCount = Math.ceil(totalDays / bucketDays);
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const buckets = [];
+    const elevationTrendSeries = [];
+    const speedTrendSeries = [];
+    const heartRateTrendSeries = [];
+    const temperatureTrendSeries = [];
+    const distanceTrendSeries = [];
 
-      for (let bucketIndex = bucketCount - 1; bucketIndex >= 0; bucketIndex -= 1) {
-        const endDate = new Date(today);
-        endDate.setDate(today.getDate() - bucketDays * (bucketCount - 1 - bucketIndex));
-        const startDate = new Date(endDate);
-        startDate.setDate(endDate.getDate() - (bucketDays - 1));
-
-        buckets.push({
-          startDate,
-          endDate,
-          elevation: 0,
-          speedSum: 0,
-          speedCount: 0,
-          heartRateSum: 0,
-          heartRateCount: 0,
-          temperatureSum: 0,
-          temperatureCount: 0,
-          distance: 0,
-          calories: 0,
-          label: bucketDays === 1
-            ? formatDayLabel(endDate)
-            : `${formatDayLabel(startDate)}-${formatDayLabel(endDate)}`,
-        });
+    const appendRangePair = (targetSeries, rangeValue) => {
+      if (!rangeValue || !Number.isFinite(rangeValue.min) || !Number.isFinite(rangeValue.max)) {
+        return;
       }
 
-      return buckets;
+      targetSeries.push(Number(rangeValue.min.toFixed(2)), Number(rangeValue.max.toFixed(2)));
     };
 
-    const createMonthBuckets = monthCount => {
-      const buckets = [];
+    let totalDistance = 0;
 
-      for (let offset = monthCount - 1; offset >= 0; offset -= 1) {
-        const date = new Date(now.getFullYear(), now.getMonth() - offset, 1);
-        const startDate = new Date(date.getFullYear(), date.getMonth(), 1);
-        const endDate = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-
-        buckets.push({
-          startDate,
-          endDate,
-          elevation: 0,
-          speedSum: 0,
-          speedCount: 0,
-          heartRateSum: 0,
-          heartRateCount: 0,
-          temperatureSum: 0,
-          temperatureCount: 0,
-          distance: 0,
-          calories: 0,
-          label: formatMonthLabel(startDate),
-        });
-      }
-
-      return buckets;
-    };
-
-    let buckets = [];
-
-    if (selectedSummaryPeriod === "weekly") {
-      buckets = createDayBuckets(7, 1);
-    } else if (selectedSummaryPeriod === "monthly") {
-      buckets = createDayBuckets(28, 7);
-    } else if (selectedSummaryPeriod === "half") {
-      buckets = createMonthBuckets(6);
-    } else {
-      buckets = createMonthBuckets(12);
-    }
-
-    const rideMetricResults = await Promise.all(rides.map(async ride => {
-      const rideDate = toLocalDate(ride.date);
+    for (const item of ridesInPeriod) {
+      const { ride } = item;
       const rideDistance = Number.parseFloat(ride.distance);
       const rideElevation = Number.parseFloat(ride.elevation);
-
-      if (!rideDate) {
-        return null;
-      }
-
       let metrics = null;
 
       try {
@@ -1757,82 +1500,40 @@ document.addEventListener("DOMContentLoaded", function () {
         console.warn("Summary activity load skipped for ride:", ride.title, error);
       }
 
-      return {
-        ride,
-        rideDate,
-        rideDistance,
-        rideElevation,
-        metrics,
-      };
-    }));
-
-    for (const result of rideMetricResults) {
-      if (!result) {
-        continue;
-      }
-
-      const {
-        rideDate,
-        rideDistance,
-        rideElevation,
-        metrics,
-      } = result;
-
-      const bucket = buckets.find(item => rideDate >= item.startDate && rideDate <= item.endDate);
-
-      if (!bucket) {
-        continue;
-      }
-
-      if (Number.isFinite(rideDistance)) {
-        bucket.distance += rideDistance;
-      }
-
-      if (Number.isFinite(rideElevation)) {
-        bucket.elevation += rideElevation;
-      }
-
       if (metrics) {
-        const avgSpeed = averageFinite(metrics.speed);
-        const avgHeartRate = averageFinite(metrics.heartRate);
-        const avgTemperature = averageFinite(metrics.temperature);
-        const avgDistance = averageFinite(metrics.distance);
-        const avgCalories = averageFinite(metrics.calories);
+        appendRangePair(elevationTrendSeries, getMinMax(metrics.elevation));
+        appendRangePair(speedTrendSeries, getMinMax(metrics.speed));
+        appendRangePair(heartRateTrendSeries, getMinMax(metrics.heartRate));
+        appendRangePair(temperatureTrendSeries, getMinMax(metrics.temperature));
+        appendRangePair(distanceTrendSeries, getMinMax(metrics.distance));
 
-        if (Number.isFinite(avgSpeed)) {
-          bucket.speedSum += avgSpeed;
-          bucket.speedCount += 1;
+        if (Number.isFinite(rideDistance)) {
+          totalDistance += rideDistance;
+        } else {
+          const distanceRange = getMinMax(metrics.distance);
+          if (distanceRange && Number.isFinite(distanceRange.max)) {
+            totalDistance += distanceRange.max;
+          }
+        }
+      } else {
+        if (Number.isFinite(rideElevation)) {
+          elevationTrendSeries.push(Number(rideElevation.toFixed(2)), Number(rideElevation.toFixed(2)));
         }
 
-        if (Number.isFinite(avgHeartRate)) {
-          bucket.heartRateSum += avgHeartRate;
-          bucket.heartRateCount += 1;
-        }
-
-        if (Number.isFinite(avgTemperature)) {
-          bucket.temperatureSum += avgTemperature;
-          bucket.temperatureCount += 1;
-        }
-
-        if (!Number.isFinite(rideDistance) && Number.isFinite(avgDistance)) {
-          bucket.distance += avgDistance;
-        }
-
-        if (Number.isFinite(avgCalories)) {
-          bucket.calories += avgCalories;
+        if (Number.isFinite(rideDistance)) {
+          distanceTrendSeries.push(Number(rideDistance.toFixed(2)), Number(rideDistance.toFixed(2)));
+          totalDistance += rideDistance;
         }
       }
     }
 
     const summaryMetrics = {
-      elevation: buckets.map(bucket => Number(bucket.elevation.toFixed(2))),
-      speed: buckets.map(bucket => (bucket.speedCount > 0 ? Number((bucket.speedSum / bucket.speedCount).toFixed(2)) : null)),
-      heartRate: buckets.map(bucket => (bucket.heartRateCount > 0 ? Number((bucket.heartRateSum / bucket.heartRateCount).toFixed(2)) : null)),
-      temperature: buckets.map(bucket => (bucket.temperatureCount > 0 ? Number((bucket.temperatureSum / bucket.temperatureCount).toFixed(2)) : null)),
-      distance: buckets.map(bucket => Number(bucket.distance.toFixed(2))),
-      calories: buckets.map(bucket => Number(bucket.calories.toFixed(2))),
+      elevation: elevationTrendSeries,
+      speed: speedTrendSeries,
+      heartRate: heartRateTrendSeries,
+      temperature: temperatureTrendSeries,
+      distance: distanceTrendSeries,
     };
-    const totalDistance = buckets.reduce((sum, bucket) => sum + bucket.distance, 0);
 
     latestSummaryMetrics = summaryMetrics;
 
@@ -1844,6 +1545,21 @@ document.addEventListener("DOMContentLoaded", function () {
         ? "all countries"
         : selectedCountry;
       uploadedGraphStatus.textContent = `Total distance: ${totalDistance.toFixed(2)} km (${selectedSummaryPeriod}, ${countryLabel})`;
+    }
+
+    const countryLabel = selectedCountry === "all"
+      ? "all countries"
+      : selectedCountry;
+    summaryRenderCache.set(summaryCacheKey, {
+      summaryMetrics,
+      statusText: `Total distance: ${totalDistance.toFixed(2)} km (${selectedSummaryPeriod}, ${countryLabel})`,
+    });
+
+    } catch (error) {
+      console.error("Summary render error:", error);
+      if (uploadedGraphStatus) {
+        uploadedGraphStatus.textContent = "Unable to render cycling summary.";
+      }
     }
   }
 
@@ -2119,6 +1835,7 @@ document.addEventListener("DOMContentLoaded", function () {
   loadRidesData()
     .then(async rides => {
       allRides = Array.isArray(rides) ? rides : [];
+      summaryRenderCache.clear();
       renderRides();
 
       requestAnimationFrame(() => {
@@ -2128,6 +1845,7 @@ document.addEventListener("DOMContentLoaded", function () {
       enrichRideCountries(allRides)
         .then(hasUpdates => {
           if (hasUpdates) {
+            summaryRenderCache.clear();
             renderRides();
             renderUploadedGraph();
           }
