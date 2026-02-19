@@ -21,3 +21,11 @@
 - Add a feature for ride reviews and ratings.
 - Create an improved UI/UX design based on user feedback.
 - Explore integration with external ride management services.
+
+## Latest Updates
+- Added a cycling summary graph with selectable periods: Weekly, Monthly, Half-Yearly, and Yearly.
+- Linked top country filters (All, Taiwan, Philippines) to both cards and summary graph output.
+- Added interactive metric legend toggles (Elevation, Speed, Heart Rate) for the summary graph and ride modal.
+- Added ride details modal with combined metrics chart and embedded Leaflet map route preview.
+- Added automatic country detection (Taiwan/Philippines) from GPX coordinates during ride load.
+- Updated ride naming to display GPX filename (without `.gpx`) in cards and modal titles.
