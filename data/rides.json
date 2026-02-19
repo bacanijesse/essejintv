@@ -2,16 +2,22 @@
   {
     "id": 1,
     "country": "Taiwan",
-    "cover": "https://placehold.co/600x220?text=Uploaded+GPX+Ride",
-    "thumbnail": "https://placehold.co/600x220?text=Uploaded+GPX+Ride",
-    "title": "Uploaded GPX Ride",
+    "cover": "https://placehold.co/600x220?text=Merged+Ride+Data",
+    "thumbnail": "https://placehold.co/600x220?text=Merged+Ride+Data",
+    "title": "Merged Uploaded Ride",
     "date": "2026-02-18",
     "distance": 4.17,
     "elevation": 44,
-    "description": "Ride imported from uploaded GPX file.",
-    "gpxFile": "gpx/02_18_2026_16_12/activity_21904385848.gpx",
+    "description": "Ride merged from GPX, TCX, KML, FIT, and CSV sources with the same base filename.",
+    "dataFiles": [
+      "gpx/02_18_2026_16_12/activity_21904385848.gpx",
+      "gpx/02_18_2026_16_12/activity_21904385848.tcx",
+      "gpx/02_18_2026_16_12/activity_21904385848.kml",
+      "gpx/02_18_2026_16_12/21904385848_ACTIVITY.fit",
+      "gpx/02_18_2026_16_12/activity_21904385848.csv"
+    ],
     "youtubeUrl": "https://www.youtube.com/results?search_query=cycling+ride+taiwan",
     "photos": [],
-    "tags": ["gpx", "imported"]
+    "tags": ["gpx", "tcx", "kml", "fit", "csv", "imported", "merged"]
   }
 ]

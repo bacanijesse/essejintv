@@ -390,6 +390,14 @@ main {
   color: #f1c40f;
 }
 
+.legend-distance {
+  color: #8e44ad;
+}
+
+.legend-calories {
+  color: #ff9800;
+}
+
 .metrics-status {
   margin-top: 0.5rem;
   font-size: 0.84rem;

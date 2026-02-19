@@ -2,6 +2,7 @@ document.addEventListener("DOMContentLoaded", function () {
   let allRides = [];
   let selectedCountry = "all";
   const activityMetricsCache = new Map();
+  const mergedRideMetricsCache = new Map();
   let fitParserModulePromise = null;
   let metricsModal = null;
   let videoModal = null;
@@ -35,8 +36,14 @@ document.addEventListener("DOMContentLoaded", function () {
     speed: true,
     heartRate: true,
     temperature: true,
+    distance: true,
+    calories: true,
   };
   let latestSummaryMetrics = null;
+
+  function metricDataKey(metric) {
+    return metric === "heart-rate" ? "heartRate" : metric;
+  }
 
   function haversineDistanceMeters(lat1, lon1, lat2, lon2) {
     const earthRadiusMeters = 6371000;
@@ -87,7 +94,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function getRideDisplayName(ride) {
-    const filePath = getRideFilePath(ride);
+    const filePath = getPrimaryRideFilePath(ride);
 
     if (!filePath) {
       return ride && ride.title ? ride.title : "Ride";
@@ -103,15 +110,33 @@ document.addEventListener("DOMContentLoaded", function () {
     return ride.title || "Ride";
   }
 
-  function getRideFilePath(ride) {
+  function getRideFilePaths(ride) {
     if (!ride || typeof ride !== "object") {
-      return null;
+      return [];
     }
 
-    const candidate = [ride.dataFile, ride.activityFile, ride.file, ride.gpxFile]
-      .find(value => typeof value === "string" && value.trim().length > 0);
+    const values = [];
 
-    return candidate ? candidate.trim() : null;
+    if (Array.isArray(ride.dataFiles)) {
+      ride.dataFiles.forEach(value => {
+        if (typeof value === "string" && value.trim().length > 0) {
+          values.push(value.trim());
+        }
+      });
+    }
+
+    [ride.dataFile, ride.activityFile, ride.file, ride.gpxFile].forEach(value => {
+      if (typeof value === "string" && value.trim().length > 0) {
+        values.push(value.trim());
+      }
+    });
+
+    return Array.from(new Set(values));
+  }
+
+  function getPrimaryRideFilePath(ride) {
+    const paths = getRideFilePaths(ride);
+    return paths.length > 0 ? paths[0] : null;
   }
 
   function getFileFormat(filePath) {
@@ -286,6 +311,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const speed = [];
     const heartRate = [];
     const temperature = [];
+    const distance = [];
+    const calories = [];
     const route = [];
     let latitudeSum = 0;
     let longitudeSum = 0;
@@ -293,6 +320,7 @@ document.addEventListener("DOMContentLoaded", function () {
     let firstLatitude = null;
     let firstLongitude = null;
     let previousPoint = null;
+    let cumulativeDistanceKm = 0;
 
     points.forEach(point => {
       const latitude = Number.parseFloat(point.latitude);
@@ -300,6 +328,8 @@ document.addEventListener("DOMContentLoaded", function () {
       const elevationValue = Number.parseFloat(point.elevation);
       const heartRateValue = Number.parseFloat(point.heartRate);
       const temperatureValue = Number.parseFloat(point.temperature);
+      const distanceFromPoint = Number.parseFloat(point.distanceKm);
+      const caloriesValue = Number.parseFloat(point.calories);
       const timeValue = Number.isFinite(point.timeValue)
         ? point.timeValue
         : Date.parse(point.timeValue || point.time || "");
@@ -322,10 +352,29 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       }
 
+      let distanceValue = distanceFromPoint;
+
+      if (!Number.isFinite(distanceValue)
+        && previousPoint
+        && Number.isFinite(latitude)
+        && Number.isFinite(longitude)
+        && Number.isFinite(previousPoint.latitude)
+        && Number.isFinite(previousPoint.longitude)) {
+        const stepDistanceKm = haversineDistanceMeters(previousPoint.latitude, previousPoint.longitude, latitude, longitude) / 1000;
+        cumulativeDistanceKm += stepDistanceKm;
+        distanceValue = cumulativeDistanceKm;
+      } else if (Number.isFinite(distanceValue)) {
+        cumulativeDistanceKm = distanceValue;
+      } else if (!previousPoint && Number.isFinite(latitude) && Number.isFinite(longitude)) {
+        distanceValue = 0;
+      }
+
       elevation.push(Number.isFinite(elevationValue) ? elevationValue : null);
       speed.push(Number.isFinite(speedValue) ? speedValue : null);
       heartRate.push(Number.isFinite(heartRateValue) ? heartRateValue : null);
       temperature.push(Number.isFinite(temperatureValue) ? temperatureValue : null);
+      distance.push(Number.isFinite(distanceValue) ? distanceValue : null);
+      calories.push(Number.isFinite(caloriesValue) ? caloriesValue : null);
 
       if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
         if (firstLatitude === null || firstLongitude === null) {
@@ -351,11 +400,43 @@ document.addEventListener("DOMContentLoaded", function () {
       speed,
       heartRate,
       temperature,
+      distance,
+      calories,
       firstLatitude,
       firstLongitude,
       averageLatitude: coordinateCount > 0 ? latitudeSum / coordinateCount : null,
       averageLongitude: coordinateCount > 0 ? longitudeSum / coordinateCount : null,
       route,
+    };
+  }
+
+  function buildMetricsFromSummaryValues(summaryValues) {
+    const elevationValue = Number.parseFloat(summaryValues.elevation);
+    const speedValue = Number.parseFloat(summaryValues.speed);
+    const heartRateValue = Number.parseFloat(summaryValues.heartRate);
+    const temperatureValue = Number.parseFloat(summaryValues.temperature);
+    const distanceValue = Number.parseFloat(summaryValues.distance);
+    const caloriesValue = Number.parseFloat(summaryValues.calories);
+
+    const hasAnyMetric = [elevationValue, speedValue, heartRateValue, temperatureValue, distanceValue, caloriesValue]
+      .some(value => Number.isFinite(value));
+
+    if (!hasAnyMetric) {
+      throw new Error("CSV does not contain supported graph metrics.");
+    }
+
+    return {
+      elevation: [Number.isFinite(elevationValue) ? elevationValue : null],
+      speed: [Number.isFinite(speedValue) ? speedValue : null],
+      heartRate: [Number.isFinite(heartRateValue) ? heartRateValue : null],
+      temperature: [Number.isFinite(temperatureValue) ? temperatureValue : null],
+      distance: [Number.isFinite(distanceValue) ? distanceValue : null],
+      calories: [Number.isFinite(caloriesValue) ? caloriesValue : null],
+      firstLatitude: null,
+      firstLongitude: null,
+      averageLatitude: null,
+      averageLongitude: null,
+      route: [],
     };
   }
 
@@ -473,8 +554,16 @@ document.addEventListener("DOMContentLoaded", function () {
     const elevationIndex = findIndex(["ele", "elevation", "alt", "altitude", "altitudemeters"]);
     const timeIndex = findIndex(["time", "timestamp", "datetime", "date"]);
     const speedIndex = findIndex(["speed", "speedkmh", "speedkph", "enhancedspeed"]);
+    const distanceIndex = findIndex(["distance", "distancekm", "distkm", "dist"]);
+    const caloriesIndex = findIndex(["calories", "kcal"]);
     const heartRateIndex = findIndex(["hr", "heartrate", "heartratebpm", "heartratevalue", "heart_rate"]);
     const temperatureIndex = findIndex(["temp", "temperature", "atemp", "airtemp", "airtemperature"]);
+    const avgSpeedIndex = findIndex(["avgspeed", "avgmovingspeed"]);
+    const avgHeartRateIndex = findIndex(["avghr", "avgheartrate", "avgheartratebpm"]);
+    const avgTemperatureIndex = findIndex(["avgtemperature", "avgtemp", "avgairtemperature"]);
+    const totalAscentIndex = findIndex(["totalascent", "elevationgain", "ascent"]);
+    const totalCaloriesIndex = findIndex(["calories", "kcal", "totalcalories"]);
+    const totalDistanceIndex = findIndex(["distance", "distancekm", "distkm", "totaldistance"]);
 
     const speedHeader = speedIndex >= 0 ? headers[speedIndex].toLowerCase() : "";
     const speedInMetersPerSecond = speedHeader.includes("m/s") || speedHeader.includes(" mps ");
@@ -482,17 +571,38 @@ document.addEventListener("DOMContentLoaded", function () {
     const points = rows.slice(1).map(row => {
       const columns = row.split(delimiter).map(value => value.trim());
       const rawSpeed = speedIndex >= 0 ? Number.parseFloat(columns[speedIndex]) : null;
+      const rawDistance = distanceIndex >= 0 ? Number.parseFloat(columns[distanceIndex]) : null;
 
       return {
         latitude: latitudeIndex >= 0 ? Number.parseFloat(columns[latitudeIndex]) : null,
         longitude: longitudeIndex >= 0 ? Number.parseFloat(columns[longitudeIndex]) : null,
         elevation: elevationIndex >= 0 ? Number.parseFloat(columns[elevationIndex]) : null,
         timeValue: timeIndex >= 0 ? Date.parse(columns[timeIndex]) : NaN,
+        distanceKm: Number.isFinite(rawDistance) ? rawDistance : null,
         speedKmh: Number.isFinite(rawSpeed) ? (speedInMetersPerSecond ? rawSpeed * 3.6 : rawSpeed) : null,
+        calories: caloriesIndex >= 0 ? Number.parseFloat(columns[caloriesIndex]) : null,
         heartRate: heartRateIndex >= 0 ? Number.parseFloat(columns[heartRateIndex]) : null,
         temperature: temperatureIndex >= 0 ? Number.parseFloat(columns[temperatureIndex]) : null,
       };
     });
+
+    const hasCoordinateColumns = latitudeIndex >= 0 && longitudeIndex >= 0;
+
+    if (!hasCoordinateColumns) {
+      const summaryRow = rows.slice(1)
+        .map(row => row.split(delimiter).map(value => value.trim()))
+        .find(columns => (columns[0] || "").toLowerCase().includes("summary"))
+        || rows.slice(1).map(row => row.split(delimiter).map(value => value.trim()))[0];
+
+      return buildMetricsFromSummaryValues({
+        elevation: totalAscentIndex >= 0 ? summaryRow?.[totalAscentIndex] : null,
+        speed: avgSpeedIndex >= 0 ? summaryRow?.[avgSpeedIndex] : null,
+        heartRate: avgHeartRateIndex >= 0 ? summaryRow?.[avgHeartRateIndex] : null,
+        temperature: avgTemperatureIndex >= 0 ? summaryRow?.[avgTemperatureIndex] : null,
+        distance: totalDistanceIndex >= 0 ? summaryRow?.[totalDistanceIndex] : null,
+        calories: totalCaloriesIndex >= 0 ? summaryRow?.[totalCaloriesIndex] : null,
+      });
+    }
 
     return buildMetricsFromTrackPoints(points, "CSV");
   }
@@ -521,6 +631,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const fitData = await fitParser.parseAsync(arrayBuffer);
     const records = Array.isArray(fitData?.records) ? fitData.records : [];
+    const sessions = Array.isArray(fitData?.sessions) ? fitData.sessions : [];
+    const totalCalories = Number.parseFloat(sessions[0]?.total_calories);
     const points = records.map(record => {
       const latitude = Number.parseFloat(record.position_lat ?? record.positionLat);
       const longitude = Number.parseFloat(record.position_long ?? record.positionLong ?? record.position_lng);
@@ -531,13 +643,24 @@ document.addEventListener("DOMContentLoaded", function () {
         longitude,
         elevation: Number.parseFloat(record.enhanced_altitude ?? record.altitude),
         timeValue: Date.parse(record.timestamp),
+        distanceKm: Number.parseFloat(record.distance) / 1000,
         speedKmh,
+        calories: Number.parseFloat(record.calories),
         heartRate: Number.parseFloat(record.heart_rate),
         temperature: Number.parseFloat(record.temperature),
       };
     });
 
-    return buildMetricsFromTrackPoints(points, "FIT");
+    const metrics = buildMetricsFromTrackPoints(points, "FIT");
+
+    if (Number.isFinite(totalCalories)) {
+      const hasCalories = Array.isArray(metrics.calories) && metrics.calories.some(value => Number.isFinite(value));
+      if (!hasCalories) {
+        metrics.calories = [totalCalories];
+      }
+    }
+
+    return metrics;
   }
 
   async function parseMetricsFromFile(filePath) {
@@ -573,6 +696,101 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     return parseCsvMetrics(fileText);
+  }
+
+  function countFiniteValues(values) {
+    if (!Array.isArray(values)) {
+      return 0;
+    }
+
+    return values.reduce((count, value) => (Number.isFinite(value) ? count + 1 : count), 0);
+  }
+
+  function selectBestSeries(metricsList, key) {
+    const candidates = metricsList
+      .map(metrics => ({
+        values: Array.isArray(metrics?.[key]) ? metrics[key] : [],
+      }))
+      .filter(candidate => candidate.values.length > 0);
+
+    if (candidates.length === 0) {
+      return [];
+    }
+
+    candidates.sort((a, b) => {
+      const finiteDelta = countFiniteValues(b.values) - countFiniteValues(a.values);
+
+      if (finiteDelta !== 0) {
+        return finiteDelta;
+      }
+
+      return b.values.length - a.values.length;
+    });
+
+    return candidates[0].values;
+  }
+
+  function mergeMetricsFromSources(metricsList) {
+    if (!Array.isArray(metricsList) || metricsList.length === 0) {
+      return null;
+    }
+
+    const routeCandidate = metricsList
+      .map(metrics => ({ route: Array.isArray(metrics?.route) ? metrics.route : [] }))
+      .sort((a, b) => b.route.length - a.route.length)[0];
+
+    const route = routeCandidate?.route || [];
+    const elevation = selectBestSeries(metricsList, "elevation");
+    const speed = selectBestSeries(metricsList, "speed");
+    const heartRate = selectBestSeries(metricsList, "heartRate");
+    const temperature = selectBestSeries(metricsList, "temperature");
+    const distance = selectBestSeries(metricsList, "distance");
+    const calories = selectBestSeries(metricsList, "calories");
+
+    const coordinateSources = metricsList.filter(metrics => Number.isFinite(metrics?.averageLatitude) && Number.isFinite(metrics?.averageLongitude));
+    const averageLatitude = coordinateSources.length > 0
+      ? coordinateSources.reduce((sum, metrics) => sum + metrics.averageLatitude, 0) / coordinateSources.length
+      : null;
+    const averageLongitude = coordinateSources.length > 0
+      ? coordinateSources.reduce((sum, metrics) => sum + metrics.averageLongitude, 0) / coordinateSources.length
+      : null;
+
+    let firstLatitude = null;
+    let firstLongitude = null;
+
+    if (route.length > 0) {
+      firstLatitude = route[0][0];
+      firstLongitude = route[0][1];
+    } else {
+      const firstCoordinateSource = metricsList.find(metrics => Number.isFinite(metrics?.firstLatitude) && Number.isFinite(metrics?.firstLongitude));
+      firstLatitude = firstCoordinateSource?.firstLatitude ?? null;
+      firstLongitude = firstCoordinateSource?.firstLongitude ?? null;
+    }
+
+    return {
+      elevation,
+      speed,
+      heartRate,
+      temperature,
+      distance,
+      calories,
+      firstLatitude,
+      firstLongitude,
+      averageLatitude,
+      averageLongitude,
+      route,
+    };
+  }
+
+  async function getMetricsForFilePath(filePath) {
+    let metrics = activityMetricsCache.get(filePath);
+
+    if (!metrics) {
+      metrics = await parseMetricsFromFile(filePath);
+      activityMetricsCache.set(filePath, metrics);
+    }
+
+    return metrics;
   }
 
   function detectCountryFromCoordinates(latitude, longitude) {
@@ -698,7 +916,7 @@ document.addEventListener("DOMContentLoaded", function () {
     ctx.stroke();
   }
 
-  function drawCombinedGraph(canvas, metrics, visibleSeries = { elevation: true, speed: true, heartRate: true, temperature: true }) {
+  function drawCombinedGraph(canvas, metrics, visibleSeries = { elevation: true, speed: true, heartRate: true, temperature: true, distance: true, calories: true }) {
     const ctx = canvas.getContext("2d");
     const width = canvas.width;
     const height = canvas.height;
@@ -712,7 +930,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const xTickCount = 4;
     const yTickCount = 4;
 
-    const visibleMetricKeys = ["elevation", "speed", "heartRate", "temperature"].filter(key => Boolean(visibleSeries[key]));
+    const visibleMetricKeys = ["elevation", "speed", "heartRate", "temperature", "distance", "calories"].filter(key => Boolean(visibleSeries[key]));
     const singleMetricMode = visibleMetricKeys.length === 1;
 
     let yAxisTitle = "Value Scale (0-200)";
@@ -733,6 +951,12 @@ document.addEventListener("DOMContentLoaded", function () {
       } else if (singleKey === "temperature") {
         yAxisTitle = "Air Temp (°C)";
         yLabelFormatter = value => value.toFixed(1);
+      } else if (singleKey === "distance") {
+        yAxisTitle = "Distance (km)";
+        yLabelFormatter = value => value.toFixed(2);
+      } else if (singleKey === "calories") {
+        yAxisTitle = "Calories (kcal)";
+        yLabelFormatter = value => String(Math.round(value));
       } else {
         yAxisTitle = "Heart Rate (bpm)";
         yLabelFormatter = value => String(Math.round(value));
@@ -839,6 +1063,16 @@ document.addEventListener("DOMContentLoaded", function () {
       const temperatureSeries = mapValuesToCurrentScale(metrics.temperature);
       drawSeries(ctx, temperatureSeries, "#f1c40f", leftPadding, topPadding, plotWidth, plotHeight);
     }
+
+    if (visibleSeries.distance) {
+      const distanceSeries = mapValuesToCurrentScale(metrics.distance);
+      drawSeries(ctx, distanceSeries, "#8e44ad", leftPadding, topPadding, plotWidth, plotHeight);
+    }
+
+    if (visibleSeries.calories) {
+      const caloriesSeries = mapValuesToCurrentScale(metrics.calories);
+      drawSeries(ctx, caloriesSeries, "#ff9800", leftPadding, topPadding, plotWidth, plotHeight);
+    }
   }
 
   function updateStatLegend(panel, metrics) {
@@ -846,6 +1080,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const speedRange = getMinMax(metrics.speed);
     const heartRateRange = getMinMax(metrics.heartRate);
     const temperatureRange = getMinMax(metrics.temperature);
+    const distanceRange = getMinMax(metrics.distance);
+    const caloriesRange = getMinMax(metrics.calories);
 
     const elevationText = elevationRange
       ? `${Math.round(elevationRange.min)}-${Math.round(elevationRange.max)} m`
@@ -863,15 +1099,27 @@ document.addEventListener("DOMContentLoaded", function () {
       ? `${temperatureRange.min.toFixed(1)}-${temperatureRange.max.toFixed(1)} °C`
       : "No data";
 
+    const distanceText = distanceRange
+      ? `${distanceRange.min.toFixed(2)}-${distanceRange.max.toFixed(2)} km`
+      : "No data";
+
+    const caloriesText = caloriesRange
+      ? `${Math.round(caloriesRange.min)}-${Math.round(caloriesRange.max)} kcal`
+      : "No data";
+
     const elevationInfo = panel.querySelector("[data-metric='elevation']");
     const speedInfo = panel.querySelector("[data-metric='speed']");
     const heartRateInfo = panel.querySelector("[data-metric='heart-rate']");
     const temperatureInfo = panel.querySelector("[data-metric='temperature']");
+    const distanceInfo = panel.querySelector("[data-metric='distance']");
+    const caloriesInfo = panel.querySelector("[data-metric='calories']");
 
     if (elevationInfo) elevationInfo.textContent = `Elevation: ${elevationText}`;
     if (speedInfo) speedInfo.textContent = `Speed: ${speedText}`;
     if (heartRateInfo) heartRateInfo.textContent = `Heart Rate: ${heartRateText}`;
     if (temperatureInfo) temperatureInfo.textContent = `Air Temp: ${temperatureText}`;
+    if (distanceInfo) distanceInfo.textContent = `Distance: ${distanceText}`;
+    if (caloriesInfo) caloriesInfo.textContent = `Calories: ${caloriesText}`;
   }
 
   function ensureMetricsModal() {
@@ -895,6 +1143,8 @@ document.addEventListener("DOMContentLoaded", function () {
           <button class="legend-item legend-speed" data-metric="speed" type="button">Speed: --</button>
           <button class="legend-item legend-heart-rate" data-metric="heart-rate" type="button">Heart Rate: --</button>
           <button class="legend-item legend-temperature" data-metric="temperature" type="button">Air Temp: --</button>
+          <button class="legend-item legend-distance" data-metric="distance" type="button">Distance: --</button>
+          <button class="legend-item legend-calories" data-metric="calories" type="button">Calories: --</button>
         </div>
         <p class="metrics-status" aria-live="polite"></p>
       </div>
@@ -938,6 +1188,8 @@ document.addEventListener("DOMContentLoaded", function () {
       speed: true,
       heartRate: true,
       temperature: true,
+      distance: true,
+      calories: true,
     };
 
     const legendButtons = Array.from(backdrop.querySelectorAll(".legend-item"));
@@ -945,7 +1197,7 @@ document.addEventListener("DOMContentLoaded", function () {
     function updateLegendVisualState() {
       legendButtons.forEach(button => {
         const metric = button.dataset.metric;
-        const metricKey = metric === "heart-rate" ? "heartRate" : metric;
+        const metricKey = metricDataKey(metric);
         const isOn = Boolean(visibleSeries[metricKey]);
         button.classList.toggle("legend-off", !isOn);
       });
@@ -954,7 +1206,7 @@ document.addEventListener("DOMContentLoaded", function () {
     legendButtons.forEach(button => {
       button.addEventListener("click", function () {
         const metric = button.dataset.metric;
-        const metricKey = metric === "heart-rate" ? "heartRate" : metric;
+        const metricKey = metricDataKey(metric);
 
         visibleSeries[metricKey] = !visibleSeries[metricKey];
         updateLegendVisualState();
@@ -990,6 +1242,8 @@ document.addEventListener("DOMContentLoaded", function () {
         this.visibleSeries.speed = true;
         this.visibleSeries.heartRate = true;
         this.visibleSeries.temperature = true;
+        this.visibleSeries.distance = true;
+        this.visibleSeries.calories = true;
         updateLegendVisualState();
       },
     };
@@ -1074,9 +1328,9 @@ document.addEventListener("DOMContentLoaded", function () {
     const statusNode = panel.querySelector(".metrics-status");
     const canvas = panel.querySelector("canvas");
 
-    const rideFilePath = getRideFilePath(ride);
+    const rideFilePaths = getRideFilePaths(ride);
 
-    if (!canvas || !rideFilePath) {
+    if (!canvas || rideFilePaths.length === 0) {
       if (statusNode) {
         statusNode.textContent = "No activity file available for this ride.";
       }
@@ -1088,11 +1342,10 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     try {
-      let metrics = activityMetricsCache.get(rideFilePath);
+      const metrics = await getRideMetrics(ride);
 
       if (!metrics) {
-        metrics = await parseMetricsFromFile(rideFilePath);
-        activityMetricsCache.set(rideFilePath, metrics);
+        throw new Error("No metrics available");
       }
 
       if (metricsModal) {
@@ -1127,25 +1380,44 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   async function getRideMetrics(ride) {
-    const rideFilePath = getRideFilePath(ride);
+    const rideFilePaths = getRideFilePaths(ride);
 
-    if (!rideFilePath) {
+    if (rideFilePaths.length === 0) {
       return null;
     }
 
-    let metrics = activityMetricsCache.get(rideFilePath);
+    const mergeCacheKey = rideFilePaths.slice().sort().join("|");
+    let mergedMetrics = mergedRideMetricsCache.get(mergeCacheKey);
 
-    if (!metrics) {
-      metrics = await parseMetricsFromFile(rideFilePath);
-      activityMetricsCache.set(rideFilePath, metrics);
+    if (mergedMetrics) {
+      return mergedMetrics;
     }
 
-    return metrics;
+    const sourceMetrics = [];
+
+    for (const filePath of rideFilePaths) {
+      try {
+        const metrics = await getMetricsForFilePath(filePath);
+        if (metrics) {
+          sourceMetrics.push(metrics);
+        }
+      } catch (error) {
+        console.warn("Skipped activity source:", filePath, error);
+      }
+    }
+
+    mergedMetrics = mergeMetricsFromSources(sourceMetrics);
+
+    if (mergedMetrics) {
+      mergedRideMetricsCache.set(mergeCacheKey, mergedMetrics);
+    }
+
+    return mergedMetrics;
   }
 
   async function enrichRideCountries(rides) {
     const metricPromises = rides.map(async ride => {
-      if (!ride || !getRideFilePath(ride)) {
+      if (!ride || getRideFilePaths(ride).length === 0) {
         return { ride, metrics: null, error: null };
       }
 
@@ -1234,6 +1506,7 @@ document.addEventListener("DOMContentLoaded", function () {
           temperatureSum: 0,
           temperatureCount: 0,
           distance: 0,
+          calories: 0,
           label: bucketDays === 1
             ? formatDayLabel(endDate)
             : `${formatDayLabel(startDate)}-${formatDayLabel(endDate)}`,
@@ -1262,6 +1535,7 @@ document.addEventListener("DOMContentLoaded", function () {
           temperatureSum: 0,
           temperatureCount: 0,
           distance: 0,
+          calories: 0,
           label: formatMonthLabel(startDate),
         });
       }
@@ -1337,6 +1611,8 @@ document.addEventListener("DOMContentLoaded", function () {
         const avgSpeed = averageFinite(metrics.speed);
         const avgHeartRate = averageFinite(metrics.heartRate);
         const avgTemperature = averageFinite(metrics.temperature);
+        const avgDistance = averageFinite(metrics.distance);
+        const avgCalories = averageFinite(metrics.calories);
 
         if (Number.isFinite(avgSpeed)) {
           bucket.speedSum += avgSpeed;
@@ -1352,6 +1628,14 @@ document.addEventListener("DOMContentLoaded", function () {
           bucket.temperatureSum += avgTemperature;
           bucket.temperatureCount += 1;
         }
+
+        if (!Number.isFinite(rideDistance) && Number.isFinite(avgDistance)) {
+          bucket.distance += avgDistance;
+        }
+
+        if (Number.isFinite(avgCalories)) {
+          bucket.calories += avgCalories;
+        }
       }
     }
 
@@ -1360,6 +1644,8 @@ document.addEventListener("DOMContentLoaded", function () {
       speed: buckets.map(bucket => (bucket.speedCount > 0 ? Number((bucket.speedSum / bucket.speedCount).toFixed(2)) : null)),
       heartRate: buckets.map(bucket => (bucket.heartRateCount > 0 ? Number((bucket.heartRateSum / bucket.heartRateCount).toFixed(2)) : null)),
       temperature: buckets.map(bucket => (bucket.temperatureCount > 0 ? Number((bucket.temperatureSum / bucket.temperatureCount).toFixed(2)) : null)),
+      distance: buckets.map(bucket => Number(bucket.distance.toFixed(2))),
+      calories: buckets.map(bucket => Number(bucket.calories.toFixed(2))),
     };
     const totalDistance = buckets.reduce((sum, bucket) => sum + bucket.distance, 0);
 
@@ -1379,7 +1665,7 @@ document.addEventListener("DOMContentLoaded", function () {
   function updateSummaryLegendVisualState() {
     summaryLegendButtons.forEach(button => {
       const metric = button.dataset.metric;
-      const metricKey = metric === "heart-rate" ? "heartRate" : metric;
+      const metricKey = metricDataKey(metric);
       const isOn = Boolean(summaryVisibleSeries[metricKey]);
       button.classList.toggle("legend-off", !isOn);
     });
@@ -1388,7 +1674,7 @@ document.addEventListener("DOMContentLoaded", function () {
   summaryLegendButtons.forEach(button => {
     button.addEventListener("click", function () {
       const metric = button.dataset.metric;
-      const metricKey = metric === "heart-rate" ? "heartRate" : metric;
+      const metricKey = metricDataKey(metric);
 
       summaryVisibleSeries[metricKey] = !summaryVisibleSeries[metricKey];
       updateSummaryLegendVisualState();
