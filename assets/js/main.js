@@ -30,7 +30,9 @@ fetch("./data/rides.json")
 const toggleBtn = document.getElementById("themeToggle");
 const icon = document.getElementById("themeIcon");
 
-if (toggleBtn && icon) {
+if (!toggleBtn || !icon) {
+  console.warn("Theme toggle not found.");
+} else {
 
   const savedTheme = localStorage.getItem("theme");
 
@@ -39,7 +41,7 @@ if (toggleBtn && icon) {
     icon.textContent = "☀️";
   }
 
-  toggleBtn.onclick = function () {
+  toggleBtn.addEventListener("click", function () {
     const current = document.documentElement.getAttribute("data-theme");
 
     if (current === "dark") {
@@ -51,6 +53,9 @@ if (toggleBtn && icon) {
       localStorage.setItem("theme", "dark");
       icon.textContent = "☀️";
     }
-  };
+  });
+
+}
+
 
 }
