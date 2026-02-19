@@ -10,10 +10,13 @@
 </head>
 <body>
 	<header>
-		<h1>🚴 essejintv -  Taiwan</h1>
+		<h1 class="site-title">
+			<img src="assets/images/logo.png" alt="essejintv logo" class="site-logo">
+		</h1>
 		<nav class="top-menu" aria-label="Main menu">
-			<a href="#" class="menu-link">Home</a>
-			<a href="#" class="menu-link">Profile</a>
+			<a href="#summary-section" class="menu-link" data-section="summary">Summary</a>
+			<a href="#cards-section" class="menu-link" data-section="cards">Cards</a>
+			<a href="#testimonials-section" class="menu-link" data-section="testimonials">Testimonials</a>
 			<details class="country-menu">
 				<summary class="menu-link">Country</summary>
 				<div class="country-options" aria-label="Country options">
@@ -22,8 +25,8 @@
 					<button class="menu-btn" data-country="philippines" type="button" aria-label="Philippines">🇵🇭 Philippines</button>
 				</div>
 			</details>
-			<a href="#" class="menu-link">Contact</a>
-			<a href="#" class="menu-link">About</a>
+			<a href="#contact-section" class="menu-link" data-section="contact">Contact</a>
+			<a href="#about-section" class="menu-link" data-section="about">About</a>
 		</nav>
 		<button id="themeToggle" class="theme-toggle">
 			<span id="themeIcon">🌙</span>
@@ -31,48 +34,84 @@
 	</header>
 
 	<main>
-		<section class="ad-section" aria-label="Advertisement">
-			<ins class="adsbygoogle"
-				 style="display:block"
-				 data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
-				 data-ad-slot="1111111111"
-				 data-ad-format="auto"
-				 data-full-width-responsive="true"></ins>
+		<section id="summary-section" class="page-section" aria-label="Summary section">
+			<section class="ad-section" aria-label="Advertisement">
+				<ins class="adsbygoogle"
+					 style="display:block"
+					 data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+					 data-ad-slot="1111111111"
+					 data-ad-format="auto"
+					 data-full-width-responsive="true"></ins>
+			</section>
+
+			<section id="uploaded-graph-section" class="info-section" aria-label="Uploaded GPX graph">
+				<h2>Cycling Summary</h2>
+				<div class="summary-controls" aria-label="Summary period controls">
+					<button class="summary-btn active" data-period="weekly" type="button">Weekly</button>
+					<button class="summary-btn" data-period="monthly" type="button">Monthly</button>
+					<button class="summary-btn" data-period="half" type="button">Half-Yearly</button>
+					<button class="summary-btn" data-period="yearly" type="button">Yearly</button>
+				</div>
+				<canvas id="uploadedGraphCanvas" class="metrics-canvas" width="860" height="340" aria-label="Cycling summary chart"></canvas>
+				<div class="metrics-legend">
+					<button class="legend-item legend-elevation" data-metric="elevation" type="button">Elevation: --</button>
+					<button class="legend-item legend-speed" data-metric="speed" type="button">Speed: --</button>
+					<button class="legend-item legend-heart-rate" data-metric="heart-rate" type="button">Heart Rate: --</button>
+					<button class="legend-item legend-temperature" data-metric="temperature" type="button">Air Temp: --</button>
+				</div>
+				<p id="uploadedGraphStatus" class="metrics-status" aria-live="polite"></p>
+			</section>
 		</section>
 
-		<section id="uploaded-graph-section" class="info-section" aria-label="Uploaded GPX graph">
-			<h2>Cycling Summary</h2>
-			<div class="summary-controls" aria-label="Summary period controls">
-				<button class="summary-btn active" data-period="weekly" type="button">Weekly</button>
-				<button class="summary-btn" data-period="monthly" type="button">Monthly</button>
-				<button class="summary-btn" data-period="half" type="button">Half-Yearly</button>
-				<button class="summary-btn" data-period="yearly" type="button">Yearly</button>
-			</div>
-			<canvas id="uploadedGraphCanvas" class="metrics-canvas" width="860" height="340" aria-label="Cycling summary chart"></canvas>
-			<div class="metrics-legend">
-				<button class="legend-item legend-elevation" data-metric="elevation" type="button">Elevation: --</button>
-				<button class="legend-item legend-speed" data-metric="speed" type="button">Speed: --</button>
-				<button class="legend-item legend-heart-rate" data-metric="heart-rate" type="button">Heart Rate: --</button>
-			</div>
-			<p id="uploadedGraphStatus" class="metrics-status" aria-live="polite"></p>
+		<section id="cards-section" class="page-section" aria-label="Cards section">
+			<div id="rides-grid" class="rides-grid"></div>
+			<div id="rides-pagination" class="pagination" aria-label="Rides pagination"></div>
+
+			<section class="ad-section" aria-label="Advertisement">
+				<ins class="adsbygoogle"
+					 style="display:block"
+					 data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+					 data-ad-slot="2222222222"
+					 data-ad-format="auto"
+					 data-full-width-responsive="true"></ins>
+			</section>
 		</section>
 
-		<div id="rides-grid" class="rides-grid"></div>
-		<div id="rides-pagination" class="pagination" aria-label="Rides pagination"></div>
+		<section id="testimonials-section" class="page-section info-section" aria-label="Testimonials section">
+			<h2>Testimonials</h2>
+			<div class="testimonials-grid">
+				<article class="testimonial-card">
+					<p>“Great cycling routes and clean stats view. I can review my ride quickly.”</p>
+					<strong>- Rider A</strong>
+				</article>
+				<article class="testimonial-card">
+					<p>“The graph filters and country options make ride tracking simple and fast.”</p>
+					<strong>- Rider B</strong>
+				</article>
+				<article class="testimonial-card">
+					<p>“The map and metrics in one place really help me compare every ride.”</p>
+					<strong>- Rider C</strong>
+				</article>
+			</div>
+		</section>
 
-		<section class="ad-section" aria-label="Advertisement">
-			<ins class="adsbygoogle"
-				 style="display:block"
-				 data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
-				 data-ad-slot="2222222222"
-				 data-ad-format="auto"
-				 data-full-width-responsive="true"></ins>
+		<section id="contact-section" class="page-section info-section" aria-label="Contact section">
+			<h2>Contact</h2>
+			<p>Email: <a href="mailto:your-email@example.com">your-email@example.com</a></p>
+			<p>YouTube: <a href="https://www.youtube.com/" target="_blank" rel="noopener noreferrer">youtube.com</a></p>
+		</section>
+
+		<section id="about-section" class="page-section info-section" aria-label="About section">
+			<h2>About This Page</h2>
+			<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus tincidunt, massa vitae fermentum iaculis, nulla sapien luctus velit, sed posuere mi erat quis leo. Integer et purus ut arcu gravida tempus. Mauris pretium risus non justo cursus, a volutpat sem aliquet. Donec consequat nibh at libero facilisis, nec ullamcorper urna.</p>
 		</section>
 	</main>
 
 	<footer>
 		<p>&copy; 2026 Jesse's Cycling Adventures. All rights reserved.</p>
 	</footer>
+
+	<button id="backToTopBtn" class="back-to-top" type="button" aria-label="Back to top">↑</button>
 
 	<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 	<script>

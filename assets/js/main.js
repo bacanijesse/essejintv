@@ -12,9 +12,18 @@ document.addEventListener("DOMContentLoaded", function () {
   const menuButtons = document.querySelectorAll(".menu-btn");
   const countryMenu = document.querySelector(".country-menu");
   let countryMenuCloseTimer = null;
+  const sectionLinks = document.querySelectorAll(".menu-link[data-section]");
+  const sectionMap = {
+    summary: document.getElementById("summary-section"),
+    cards: document.getElementById("cards-section"),
+    testimonials: document.getElementById("testimonials-section"),
+    contact: document.getElementById("contact-section"),
+    about: document.getElementById("about-section"),
+  };
   const uploadedGraphSection = document.getElementById("uploaded-graph-section");
   const uploadedGraphCanvas = document.getElementById("uploadedGraphCanvas");
   const uploadedGraphStatus = document.getElementById("uploadedGraphStatus");
+  const backToTopBtn = document.getElementById("backToTopBtn");
   const summaryLegendButtons = uploadedGraphSection
     ? Array.from(uploadedGraphSection.querySelectorAll(".legend-item"))
     : [];
@@ -24,6 +33,7 @@ document.addEventListener("DOMContentLoaded", function () {
     elevation: true,
     speed: true,
     heartRate: true,
+    temperature: true,
   };
   let latestSummaryMetrics = null;
 
@@ -88,6 +98,20 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     return ride.title || "Ride";
+  }
+
+  function setContactFocusMode(isContactMode) {
+    Object.entries(sectionMap).forEach(([sectionKey, sectionNode]) => {
+      if (!sectionNode) {
+        return;
+      }
+
+      if (isContactMode) {
+        sectionNode.hidden = sectionKey !== "contact";
+      } else {
+        sectionNode.hidden = false;
+      }
+    });
   }
 
   function extractYouTubeVideoId(urlValue) {
@@ -248,6 +272,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const elevation = [];
     const speed = [];
     const heartRate = [];
+    const temperature = [];
     const route = [];
     let latitudeSum = 0;
     let longitudeSum = 0;
@@ -266,6 +291,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const timeValue = timeNode ? Date.parse(timeNode.textContent) : NaN;
       const speedFromGpx = getFirstTagValueByLocalName(trackPoint, "speed");
       const heartRateValue = getFirstTagValueByLocalName(trackPoint, "hr");
+      const temperatureValue = getFirstTagValueByLocalName(trackPoint, "atemp");
 
       let speedValue = speedFromGpx;
 
@@ -283,6 +309,7 @@ document.addEventListener("DOMContentLoaded", function () {
       elevation.push(Number.isFinite(elevationValue) ? elevationValue : null);
       speed.push(Number.isFinite(speedValue) ? speedValue : null);
       heartRate.push(Number.isFinite(heartRateValue) ? heartRateValue : null);
+      temperature.push(Number.isFinite(temperatureValue) ? temperatureValue : null);
 
       if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
         if (firstLatitude === null || firstLongitude === null) {
@@ -307,6 +334,7 @@ document.addEventListener("DOMContentLoaded", function () {
       elevation,
       speed,
       heartRate,
+      temperature,
       firstLatitude,
       firstLongitude,
       averageLatitude: coordinateCount > 0 ? latitudeSum / coordinateCount : null,
@@ -438,7 +466,7 @@ document.addEventListener("DOMContentLoaded", function () {
     ctx.stroke();
   }
 
-  function drawCombinedGraph(canvas, metrics, visibleSeries = { elevation: true, speed: true, heartRate: true }) {
+  function drawCombinedGraph(canvas, metrics, visibleSeries = { elevation: true, speed: true, heartRate: true, temperature: true }) {
     const ctx = canvas.getContext("2d");
     const width = canvas.width;
     const height = canvas.height;
@@ -452,7 +480,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const xTickCount = 4;
     const yTickCount = 4;
 
-    const visibleMetricKeys = ["elevation", "speed", "heartRate"].filter(key => Boolean(visibleSeries[key]));
+    const visibleMetricKeys = ["elevation", "speed", "heartRate", "temperature"].filter(key => Boolean(visibleSeries[key]));
     const singleMetricMode = visibleMetricKeys.length === 1;
 
     let yAxisTitle = "Value Scale (0-200)";
@@ -469,6 +497,9 @@ document.addEventListener("DOMContentLoaded", function () {
         yLabelFormatter = value => String(Math.round(value));
       } else if (singleKey === "speed") {
         yAxisTitle = "Speed (km/h)";
+        yLabelFormatter = value => value.toFixed(1);
+      } else if (singleKey === "temperature") {
+        yAxisTitle = "Air Temp (°C)";
         yLabelFormatter = value => value.toFixed(1);
       } else {
         yAxisTitle = "Heart Rate (bpm)";
@@ -571,12 +602,18 @@ document.addEventListener("DOMContentLoaded", function () {
       const heartRateSeries = mapValuesToCurrentScale(metrics.heartRate);
       drawSeries(ctx, heartRateSeries, "#1e88e5", leftPadding, topPadding, plotWidth, plotHeight);
     }
+
+    if (visibleSeries.temperature) {
+      const temperatureSeries = mapValuesToCurrentScale(metrics.temperature);
+      drawSeries(ctx, temperatureSeries, "#f1c40f", leftPadding, topPadding, plotWidth, plotHeight);
+    }
   }
 
   function updateStatLegend(panel, metrics) {
     const elevationRange = getMinMax(metrics.elevation);
     const speedRange = getMinMax(metrics.speed);
     const heartRateRange = getMinMax(metrics.heartRate);
+    const temperatureRange = getMinMax(metrics.temperature);
 
     const elevationText = elevationRange
       ? `${Math.round(elevationRange.min)}-${Math.round(elevationRange.max)} m`
@@ -590,13 +627,19 @@ document.addEventListener("DOMContentLoaded", function () {
       ? `${Math.round(heartRateRange.min)}-${Math.round(heartRateRange.max)} bpm`
       : "No data";
 
+    const temperatureText = temperatureRange
+      ? `${temperatureRange.min.toFixed(1)}-${temperatureRange.max.toFixed(1)} °C`
+      : "No data";
+
     const elevationInfo = panel.querySelector("[data-metric='elevation']");
     const speedInfo = panel.querySelector("[data-metric='speed']");
     const heartRateInfo = panel.querySelector("[data-metric='heart-rate']");
+    const temperatureInfo = panel.querySelector("[data-metric='temperature']");
 
     if (elevationInfo) elevationInfo.textContent = `Elevation: ${elevationText}`;
     if (speedInfo) speedInfo.textContent = `Speed: ${speedText}`;
     if (heartRateInfo) heartRateInfo.textContent = `Heart Rate: ${heartRateText}`;
+    if (temperatureInfo) temperatureInfo.textContent = `Air Temp: ${temperatureText}`;
   }
 
   function ensureMetricsModal() {
@@ -619,6 +662,7 @@ document.addEventListener("DOMContentLoaded", function () {
           <button class="legend-item legend-elevation" data-metric="elevation" type="button">Elevation: --</button>
           <button class="legend-item legend-speed" data-metric="speed" type="button">Speed: --</button>
           <button class="legend-item legend-heart-rate" data-metric="heart-rate" type="button">Heart Rate: --</button>
+          <button class="legend-item legend-temperature" data-metric="temperature" type="button">Air Temp: --</button>
         </div>
         <p class="metrics-status" aria-live="polite"></p>
       </div>
@@ -661,6 +705,7 @@ document.addEventListener("DOMContentLoaded", function () {
       elevation: true,
       speed: true,
       heartRate: true,
+      temperature: true,
     };
 
     const legendButtons = Array.from(backdrop.querySelectorAll(".legend-item"));
@@ -712,6 +757,7 @@ document.addEventListener("DOMContentLoaded", function () {
         this.visibleSeries.elevation = true;
         this.visibleSeries.speed = true;
         this.visibleSeries.heartRate = true;
+        this.visibleSeries.temperature = true;
         updateLegendVisualState();
       },
     };
@@ -888,6 +934,11 @@ document.addEventListener("DOMContentLoaded", function () {
         if (detectedCountry) {
           ride.country = detectedCountry;
         }
+
+        const avgTemperature = averageFinite(metrics.temperature);
+        if (Number.isFinite(avgTemperature)) {
+          ride.airTemperature = Number(avgTemperature.toFixed(1));
+        }
       } catch (error) {
         console.warn("Country detection skipped for ride:", ride.title, error);
       }
@@ -943,6 +994,8 @@ document.addEventListener("DOMContentLoaded", function () {
           speedCount: 0,
           heartRateSum: 0,
           heartRateCount: 0,
+          temperatureSum: 0,
+          temperatureCount: 0,
           distance: 0,
           label: bucketDays === 1
             ? formatDayLabel(endDate)
@@ -969,6 +1022,8 @@ document.addEventListener("DOMContentLoaded", function () {
           speedCount: 0,
           heartRateSum: 0,
           heartRateCount: 0,
+          temperatureSum: 0,
+          temperatureCount: 0,
           distance: 0,
           label: formatMonthLabel(startDate),
         });
@@ -1018,6 +1073,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (metrics) {
           const avgSpeed = averageFinite(metrics.speed);
           const avgHeartRate = averageFinite(metrics.heartRate);
+          const avgTemperature = averageFinite(metrics.temperature);
 
           if (Number.isFinite(avgSpeed)) {
             bucket.speedSum += avgSpeed;
@@ -1027,6 +1083,11 @@ document.addEventListener("DOMContentLoaded", function () {
           if (Number.isFinite(avgHeartRate)) {
             bucket.heartRateSum += avgHeartRate;
             bucket.heartRateCount += 1;
+          }
+
+          if (Number.isFinite(avgTemperature)) {
+            bucket.temperatureSum += avgTemperature;
+            bucket.temperatureCount += 1;
           }
         }
       } catch (error) {
@@ -1038,6 +1099,7 @@ document.addEventListener("DOMContentLoaded", function () {
       elevation: buckets.map(bucket => Number(bucket.elevation.toFixed(2))),
       speed: buckets.map(bucket => (bucket.speedCount > 0 ? Number((bucket.speedSum / bucket.speedCount).toFixed(2)) : null)),
       heartRate: buckets.map(bucket => (bucket.heartRateCount > 0 ? Number((bucket.heartRateSum / bucket.heartRateCount).toFixed(2)) : null)),
+      temperature: buckets.map(bucket => (bucket.temperatureCount > 0 ? Number((bucket.temperatureSum / bucket.temperatureCount).toFixed(2)) : null)),
     };
     const totalDistance = buckets.reduce((sum, bucket) => sum + bucket.distance, 0);
 
@@ -1096,7 +1158,7 @@ document.addEventListener("DOMContentLoaded", function () {
         <h2>${getCountryFlag(ride.country)} ${getRideDisplayName(ride)} <span class="card-metrics-icon" aria-hidden="true">📈</span></h2>
         <div class="card-meta">
           <div class="stats">
-            ${ride.distance} km • ${ride.elevation} m<br>
+            ${ride.distance} km • ${ride.elevation} m • ${Number.isFinite(Number(ride.airTemperature)) ? Number(ride.airTemperature).toFixed(1) : "--"} °C<br>
             ${ride.date}
           </div>
           <a class="youtube-link" href="${youtubeUrl}" target="_blank" rel="noopener noreferrer" aria-label="Watch ride video on YouTube">▶ YouTube</a>
@@ -1221,6 +1283,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   menuButtons.forEach(button => {
     button.addEventListener("click", function () {
+      setContactFocusMode(false);
       selectedCountry = this.dataset.country || "all";
       currentPage = 1;
 
@@ -1254,12 +1317,50 @@ document.addEventListener("DOMContentLoaded", function () {
 
   summaryButtons.forEach(button => {
     button.addEventListener("click", function () {
+      setContactFocusMode(false);
       selectedSummaryPeriod = this.dataset.period || "weekly";
       summaryButtons.forEach(btn => btn.classList.remove("active"));
       this.classList.add("active");
       renderUploadedGraph();
     });
   });
+
+  sectionLinks.forEach(link => {
+    link.addEventListener("click", function (event) {
+      event.preventDefault();
+      const targetSection = this.dataset.section;
+      const targetNode = targetSection ? sectionMap[targetSection] : null;
+
+      if (!targetNode) {
+        return;
+      }
+
+      if (targetSection === "contact") {
+        setContactFocusMode(true);
+      } else {
+        setContactFocusMode(false);
+      }
+
+      targetNode.scrollIntoView({ behavior: "auto", block: "start" });
+    });
+  });
+
+  if (backToTopBtn) {
+    const toggleBackToTopButton = function () {
+      if (window.scrollY > 220) {
+        backToTopBtn.classList.add("show");
+      } else {
+        backToTopBtn.classList.remove("show");
+      }
+    };
+
+    window.addEventListener("scroll", toggleBackToTopButton, { passive: true });
+    toggleBackToTopButton();
+
+    backToTopBtn.addEventListener("click", function () {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  }
 
   /* ===== LOAD RIDES ===== */
   fetch("data/rides.json")
