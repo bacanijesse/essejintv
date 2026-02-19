@@ -3,13 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="src/css/styles.css">
-    <title>Your Title Here</title>
+    <title>🚴 Cycling Taiwan - Jesse's Adventures</title>
+    <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body>
-    <div class="rides-container">
-        <!-- Dynamic ride loading will happen here -->
-    </div>
-    <script src="src/js/script.js"></script>
+    <header>
+        <h1>🚴 Cycling Taiwan</h1>
+        <button id="themeToggle" class="theme-toggle">
+            <span id="themeIcon">🌙</span>
+        </button>
+    </header>
+    
+    <main>
+        <div id="rides-grid" class="rides-grid">
+            <!-- Rides will be dynamically loaded here -->
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 Jesse's Cycling Adventures. All rights reserved.</p>
+    </footer>
+
+    <script src="assets/js/main.js"></script>
 </body>
 </html>
