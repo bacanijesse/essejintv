@@ -23,6 +23,7 @@ document.addEventListener("DOMContentLoaded", function () {
     testimonials: document.getElementById("testimonials-section"),
     donation: document.getElementById("donation-section"),
     contact: document.getElementById("contact-section"),
+    privacy: document.getElementById("privacy-section"),
     about: document.getElementById("about-section"),
   };
   const uploadedGraphSection = document.getElementById("uploaded-graph-section");
@@ -1638,7 +1639,7 @@ document.addEventListener("DOMContentLoaded", function () {
       : `https://www.youtube.com/results?search_query=${encodeURIComponent(`${ride.title || "ride"} cycling`)}`;
 
     card.innerHTML = `
-      ${(ride.thumbnail || ride.cover) ? `<img class="card-thumbnail" src="${ride.thumbnail || ride.cover}" loading="lazy" alt="${ride.title}">` : ''}
+      ${(ride.thumbnail || ride.cover) ? `<img class="card-thumbnail" src="${ride.thumbnail || ride.cover}" loading="lazy" decoding="async" fetchpriority="low" alt="${ride.title}">` : ''}
       <div class="card-content">
         <h2>${getCountryFlag(ride.country)} ${getRideDisplayName(ride)} <span class="card-metrics-icon" aria-hidden="true">📈</span></h2>
         <div class="card-meta">

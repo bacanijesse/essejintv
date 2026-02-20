@@ -187,6 +187,8 @@ main {
   margin-bottom: 0.22rem;
   position: relative;
   padding-bottom: 0.16rem;
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 720px;
 }
 
 .page-section[hidden] {
@@ -299,6 +301,8 @@ main {
   box-shadow: 0 2px 8px var(--shadow);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   cursor: pointer;
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 280px;
 }
 
 .card:hover {
@@ -462,6 +466,7 @@ main {
 #testimonials-section,
 #donation-section,
 #contact-section,
+#privacy-section,
 #about-section {
   margin-top: 0.08rem;
   background: transparent;
