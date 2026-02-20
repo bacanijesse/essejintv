@@ -216,7 +216,7 @@ document.addEventListener("DOMContentLoaded", function () {
       elevation: 0,
       description: `Auto-discovered ride from folder ${folderName}`,
       gpxFile: filePath,
-      youtubeUrl: "https://www.youtube.com/results?search_query=cycling+ride+taiwan",
+      youtubeUrl: idValue === 1 ? "https://www.youtube.com/watch?v=vO_iSUUSiB0" : `https://www.youtube.com/results?search_query=${encodeURIComponent(`${folderName} cycling`)}`,
       photos: [],
       tags: ["auto", "imported"],
     };
@@ -1746,19 +1746,60 @@ document.addEventListener("DOMContentLoaded", function () {
       ? ride.youtubeUrl.trim()
       : `https://www.youtube.com/results?search_query=${encodeURIComponent(`${ride.title || "ride"} cycling`)}`;
 
+    let mapPreviewHtml = '';
+    if (ride.gpxFile && ride.tags && ride.tags.includes('auto')) {
+      // Only for auto-discovered rides, show a mini map preview container
+      mapPreviewHtml = `<div class="mini-map-preview" id="mini-map-${ride.id}" style="width:100%;height:120px;border-radius:8px;overflow:hidden;margin-bottom:8px;"></div>`;
+    }
     card.innerHTML = `
       ${(ride.thumbnail || ride.cover) ? `<img class="card-thumbnail" src="${ride.thumbnail || ride.cover}" loading="lazy" decoding="async" fetchpriority="low" alt="${ride.title}">` : ''}
       <div class="card-content">
         <h2>${getCountryFlag(ride.country)} ${getRideDisplayName(ride)} <span class="card-metrics-icon" aria-hidden="true">📈</span></h2>
         <div class="card-meta">
-          <div class="stats">
-            ${ride.distance} km • ${ride.elevation} m • ${Number.isFinite(Number(ride.airTemperature)) ? Number(ride.airTemperature).toFixed(1) : "--"} °C<br>
-            ${ride.date}
-          </div>
+          ${mapPreviewHtml}
           <a class="youtube-link" href="${youtubeUrl}" target="_blank" rel="noopener noreferrer" aria-label="Watch ride video on YouTube">▶ YouTube</a>
         </div>
       </div>
     `;
+
+    // If this is an auto-discovered ride, render the mini map after DOM insertion
+    if (ride.gpxFile && ride.tags && ride.tags.includes('auto')) {
+      setTimeout(() => {
+        const mapContainer = document.getElementById(`mini-map-${ride.id}`);
+        if (mapContainer && window.L) {
+          // Fetch and parse the GPX file, then render the path
+          fetch(ride.gpxFile)
+            .then(resp => resp.text())
+            .then(gpxText => {
+              const parser = new DOMParser();
+              const xml = parser.parseFromString(gpxText, "application/xml");
+              const trkpts = Array.from(xml.querySelectorAll('trkpt'));
+              if (trkpts.length === 0) return;
+              const latlngs = trkpts.map(pt => [parseFloat(pt.getAttribute('lat')), parseFloat(pt.getAttribute('lon'))]);
+              const map = L.map(mapContainer, {
+                attributionControl: false,
+                zoomControl: false,
+                dragging: false,
+                scrollWheelZoom: false,
+                doubleClickZoom: false,
+                boxZoom: false,
+                keyboard: false,
+                tap: false,
+                touchZoom: false,
+                inertia: false,
+                interactive: false,
+              });
+              L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                minZoom: 1,
+                maxZoom: 16,
+                attribution: ''
+              }).addTo(map);
+              const polyline = L.polyline(latlngs, {color: '#1976d2', weight: 3, opacity: 0.8}).addTo(map);
+              map.fitBounds(polyline.getBounds(), {padding: [8,8]});
+            });
+        }
+      }, 0);
+    }
 
     const youtubeLink = card.querySelector(".youtube-link");
 
@@ -1887,10 +1928,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       renderRides();
       renderUploadedGraph();
-
-      if (container) {
-        container.scrollIntoView({ behavior: "auto", block: "start" });
-      }
+      // Do NOT scroll to the cards section on country change
     });
   });
 
