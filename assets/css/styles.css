@@ -552,6 +552,23 @@ main {
   border: 1px solid var(--card-border);
 }
 
+.metrics-map.loading {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(90deg, rgba(120,120,120,0.12) 0%, rgba(120,120,120,0.22) 50%, rgba(120,120,120,0.12) 100%);
+  background-size: 220% 100%;
+  animation: map-loading-shimmer 1.1s linear infinite;
+}
+
+@keyframes map-loading-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -20% 0;
+  }
+}
+
 .metrics-close-btn {
   border: 1px solid var(--card-border);
   background: var(--card-bg);
@@ -739,9 +756,63 @@ footer {
   padding: 0.52rem;
 }
 
-.testimonial-card p {
+.testimonial-message {
   margin-bottom: 0.55rem;
   font-size: 0.95rem;
   line-height: 1.6;
   opacity: 0.85;
+}
+
+.testimonial-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.testimonial-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.testimonial-social {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.testimonial-social a {
+  text-decoration: none;
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  width: 1.45rem;
+  height: 1.45rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 0;
+  color: var(--text);
+  background: var(--card-bg);
+  opacity: 0.9;
+}
+
+.social-icon::before {
+  font-size: 0.72rem;
+  line-height: 1;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.social-fb::before {
+  content: "f";
+}
+
+.social-tiktok::before {
+  content: "♪";
+}
+
+.social-yt::before {
+  content: "▶";
 }

@@ -34,6 +34,9 @@ document.addEventListener("DOMContentLoaded", function () {
     ? Array.from(uploadedGraphSection.querySelectorAll(".legend-item"))
     : [];
   const summaryButtons = document.querySelectorAll(".summary-btn");
+  const GPX_AUTO_REFRESH_INTERVAL_MS = 12000;
+  let gpxAutoRefreshTimer = null;
+  let lastDiscoveredRideSignature = "";
   let selectedSummaryPeriod = "weekly";
   const summaryVisibleSeries = {
     elevation: true,
@@ -204,7 +207,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     return {
       id: idValue,
-      country: "Taiwan",
+      country: "",
       cover: "https://placehold.co/600x220?text=Auto+Discovered+Ride",
       thumbnail: "https://placehold.co/600x220?text=Auto+Discovered+Ride",
       title: `Ride ${folderName}`,
@@ -219,13 +222,26 @@ document.addEventListener("DOMContentLoaded", function () {
     };
   }
 
+  // Builds a stable identity string for discovered rides to detect folder changes.
+  function buildDiscoveredRideSignature(rides) {
+    return (Array.isArray(rides) ? rides : [])
+      .map(ride => [
+        getPrimaryRideFilePath(ride) || "",
+        ride.date || "",
+        ride.title || "",
+      ].join("|"))
+      .sort()
+      .join(";");
+  }
+
   // Discovers GPX subfolders and generates one auto-ride entry per folder.
   async function discoverRidesFromGpxFolders() {
     const folderLinks = await fetchDirectoryListing("gpx/");
     const folderNames = folderLinks
       .filter(href => href.endsWith("/"))
       .map(href => href.replace(/\/+$/, ""))
-      .filter(name => name && name !== "." && name !== "..");
+      .filter(name => name && name !== "." && name !== "..")
+      .filter(name => /^\d{2}_\d{2}_\d{4}_\d{2}_\d{2}$/.test(name));
 
     const folderEntries = await Promise.all(folderNames.map(async folderName => {
       try {
@@ -261,6 +277,44 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     return discoveredRides;
+  }
+
+  // Polls GPX folders and updates cards automatically when new folders/files appear.
+  async function refreshDiscoveredRidesIfChanged() {
+    try {
+      const discoveredRides = await discoverRidesFromGpxFolders();
+
+      if (!Array.isArray(discoveredRides) || discoveredRides.length === 0) {
+        return;
+      }
+
+      const signature = buildDiscoveredRideSignature(discoveredRides);
+      if (signature === lastDiscoveredRideSignature) {
+        return;
+      }
+
+      lastDiscoveredRideSignature = signature;
+      allRides = discoveredRides;
+      currentPage = 1;
+      summaryRenderCache.clear();
+      renderRides();
+      renderUploadedGraph();
+      prewarmRideMetricsCache(allRides);
+
+      enrichRideCountries(allRides)
+        .then(hasUpdates => {
+          if (hasUpdates) {
+            summaryRenderCache.clear();
+            renderRides();
+            renderUploadedGraph();
+          }
+        })
+        .catch(error => {
+          console.warn("Background enrichment skipped:", error);
+        });
+    } catch (error) {
+      console.warn("Auto-refresh discovery skipped:", error);
+    }
   }
 
   // Toggles section visibility when the contact-only focus mode is enabled.
@@ -1044,8 +1098,8 @@ document.addEventListener("DOMContentLoaded", function () {
           <h2 id="metricsModalTitle">Ride Metrics</h2>
           <button class="metrics-close-btn" type="button" aria-label="Close metrics modal">✕</button>
         </div>
-        <canvas class="metrics-canvas" width="860" height="340" aria-label="Ride metrics chart"></canvas>
         <div class="metrics-map" aria-label="Ride route map"></div>
+        <canvas class="metrics-canvas" width="860" height="340" aria-label="Ride metrics chart"></canvas>
         <div class="metrics-legend">
           <button class="legend-item legend-elevation" data-metric="elevation" type="button">Elevation: --</button>
           <button class="legend-item legend-speed" data-metric="speed" type="button">Speed: --</button>
@@ -1144,6 +1198,7 @@ document.addEventListener("DOMContentLoaded", function () {
       visibleSeries,
       currentMetrics: null,
       map: null,
+      mapTileLayer: null,
       mapLayer: null,
       resetVisibleSeries() {
         this.visibleSeries.elevation = true;
@@ -1173,8 +1228,13 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     const statusNode = panel.querySelector(".metrics-status");
+    const mapContainer = panel.querySelector(".metrics-map");
     if (statusNode) {
       statusNode.textContent = "Loading ride metrics...";
+    }
+
+    if (mapContainer) {
+      mapContainer.classList.add("loading");
     }
 
     modal.currentMetrics = null;
@@ -1206,15 +1266,27 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
+    mapContainer.classList.add("loading");
+
     if (!metricsModal.map) {
       metricsModal.map = window.L.map(mapContainer, {
         zoomControl: true,
+        preferCanvas: true,
+        zoomAnimation: false,
+        fadeAnimation: false,
+        markerZoomAnimation: false,
       });
 
-      window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      metricsModal.mapTileLayer = window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
+        updateWhenIdle: true,
+        keepBuffer: 1,
         attribution: "&copy; OpenStreetMap contributors",
       }).addTo(metricsModal.map);
+
+      metricsModal.mapTileLayer.on("load", function () {
+        mapContainer.classList.remove("loading");
+      });
     }
 
     if (metricsModal.mapLayer) {
@@ -1231,6 +1303,10 @@ document.addEventListener("DOMContentLoaded", function () {
     metricsModal.map.fitBounds(metricsModal.mapLayer.getBounds(), {
       padding: [16, 16],
     });
+
+    setTimeout(() => {
+      mapContainer.classList.remove("loading");
+    }, 900);
   }
 
   // Loads ride metrics then renders chart, map, and legend into the modal.
@@ -1288,6 +1364,38 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const sum = valid.reduce((total, value) => total + value, 0);
     return sum / valid.length;
+  }
+
+  // Preloads metrics for a few rides during idle time to speed first modal open.
+  function prewarmRideMetricsCache(rides, maxRides = 6) {
+    const candidates = (Array.isArray(rides) ? rides : [])
+      .filter(ride => getRideFilePaths(ride).length > 0)
+      .slice(0, maxRides);
+
+    if (candidates.length === 0) {
+      return;
+    }
+
+    const runPrewarm = async function () {
+      for (const ride of candidates) {
+        try {
+          await getRideMetrics(ride);
+        } catch (error) {
+          console.warn("Prewarm skipped for ride:", ride && ride.title ? ride.title : "Ride", error);
+        }
+      }
+    };
+
+    if (typeof window.requestIdleCallback === "function") {
+      window.requestIdleCallback(() => {
+        runPrewarm();
+      }, { timeout: 2200 });
+      return;
+    }
+
+    setTimeout(() => {
+      runPrewarm();
+    }, 120);
   }
 
   // Returns merged metrics for a ride with multi-file caching and dedupe.
@@ -1876,8 +1984,10 @@ document.addEventListener("DOMContentLoaded", function () {
   loadRidesData()
     .then(async rides => {
       allRides = Array.isArray(rides) ? rides : [];
+      lastDiscoveredRideSignature = buildDiscoveredRideSignature(allRides);
       summaryRenderCache.clear();
       renderRides();
+      prewarmRideMetricsCache(allRides);
 
       requestAnimationFrame(() => {
         renderUploadedGraph();
@@ -1889,11 +1999,18 @@ document.addEventListener("DOMContentLoaded", function () {
             summaryRenderCache.clear();
             renderRides();
             renderUploadedGraph();
+            prewarmRideMetricsCache(allRides);
           }
         })
         .catch(error => {
           console.warn("Background enrichment skipped:", error);
         });
+
+      if (!gpxAutoRefreshTimer) {
+        gpxAutoRefreshTimer = setInterval(() => {
+          refreshDiscoveredRidesIfChanged();
+        }, GPX_AUTO_REFRESH_INTERVAL_MS);
+      }
     })
     .catch(err => {
       console.error("Ride loading error:", err);
