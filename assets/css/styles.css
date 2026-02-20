@@ -1,3 +1,71 @@
+#contact-section a,
+#privacy-section a {
+  color: #111 !important;
+  font-weight: bold;
+  text-decoration: underline;
+  transition: color 0.2s;
+}
+
+[data-theme="dark"] #contact-section a,
+[data-theme="dark"] #privacy-section a {
+  color: #fff !important;
+  font-weight: bold;
+}
+#contact-section .yt-link-black {
+  color: #111 !important;
+}
+#contact-section .contact-list {
+  font-size: 1.25em;
+  margin-bottom: 1.1em;
+  margin-top: 0.5em;
+  padding-left: 1.3em;
+  list-style-position: inside;
+}
+#contact-section .contact-list li {
+  margin-bottom: 0.85em;
+  text-align: justify;
+}
+#about-section .about-list {
+  font-size: 1.25em;
+  margin-bottom: 1.1em;
+  margin-top: 0.5em;
+  padding-left: 1.3em;
+  list-style-position: inside;
+}
+#about-section .about-list li {
+  margin-bottom: 0.85em;
+  text-align: justify;
+}
+#privacy-section .privacy-list {
+  font-size: 1.25em;
+  margin-bottom: 1.1em;
+  margin-top: 0.5em;
+  padding-left: 1.3em;
+}
+#privacy-section p {
+  font-size: 1.25em;
+}
+#privacy-section .privacy-list li {
+  margin-bottom: 0.85em;
+  text-align: justify;
+}
+#privacy-section p {
+  font-size: 1.13em;
+  margin-bottom: 1.1em;
+}
+.page-section p {
+  text-align: justify;
+}
+#about-section {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+#about-section {
+  background: transparent;
+}
 /* Mobile-only fixed parallax background workaround */
 .mobile-parallax-bg {
   display: none;
@@ -259,20 +327,11 @@ h1 {
   left: 50%;
     gap: 0.75rem;
     padding-top: 0.45rem;
-    flex-direction: row;
+    flex-direction: column;
     align-items: center;
   min-width: 170px;
   padding: 0.55rem;
-  /* Desktop menu layout: left to right */
-  @media (min-width: 601px) {
-    .top-menu {
-      flex-direction: row;
-      align-items: center;
-      justify-content: center;
-      gap: 0.75rem;
-      padding-top: 0.45rem;
-    }
-  }
+  /* Always vertical layout for country menu */
   background: var(--header-chip-bg);
   /* Country dropdown improvements */
   .country-menu {
@@ -346,9 +405,7 @@ main {
   border-radius: 999px;
 }
 
-.page-section:last-of-type::after {
-  display: none;
-}
+
 
 .ad-section {
   margin: 0.15rem 0 0.2rem;
@@ -605,8 +662,7 @@ main {
 #testimonials-section,
 #donation-section,
 #contact-section,
-#privacy-section,
-#about-section {
+#privacy-section {
   margin-top: 0.08rem;
   background: transparent;
   border: none;

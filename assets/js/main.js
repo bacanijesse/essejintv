@@ -1,4 +1,18 @@
 document.addEventListener("DOMContentLoaded", function () {
+    // Show only the selected section, menu, and footer
+    function setSectionFocusMode(sectionKey) {
+      if (!sectionKey || !sectionMap[sectionKey]) {
+        // If no valid section, show all sections (default behavior)
+        Object.values(sectionMap).forEach(node => {
+          if (node) node.hidden = false;
+        });
+        return;
+      }
+      Object.entries(sectionMap).forEach(([key, node]) => {
+        if (!node) return;
+        node.hidden = key !== sectionKey;
+      });
+    }
   let allRides = [];
   let selectedCountry = "all";
   const activityMetricsCache = new Map();
@@ -317,20 +331,17 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  // Toggles section visibility when the contact-only focus mode is enabled.
+  // Toggles section visibility for a given section (used by menu links)
   function setContactFocusMode(isContactMode) {
-    Object.entries(sectionMap).forEach(([sectionKey, sectionNode]) => {
-      if (!sectionNode) {
-        return;
-      }
-
-      if (isContactMode) {
-        sectionNode.hidden = sectionKey !== "contact";
-      } else {
-        sectionNode.hidden = false;
-      }
-    });
+    setSectionFocusMode(isContactMode ? "contact" : null);
   }
+  // Attach click handlers to menu links to show only the selected section
+  sectionLinks.forEach(link => {
+    link.addEventListener("click", function (e) {
+      const section = link.getAttribute("data-section");
+      setSectionFocusMode(section);
+    });
+  });
 
   // Extracts a YouTube video ID from supported URL formats.
   function extractYouTubeVideoId(urlValue) {
@@ -1926,9 +1937,10 @@ document.addEventListener("DOMContentLoaded", function () {
       menuButtons.forEach(btn => btn.classList.remove("active"));
       this.classList.add("active");
 
+      // When a country is selected, show only the Cards section and filter rides
+      setSectionFocusMode("cards");
       renderRides();
       renderUploadedGraph();
-      // Do NOT scroll to the cards section on country change
     });
   });
 
@@ -1962,18 +1974,33 @@ document.addEventListener("DOMContentLoaded", function () {
     link.addEventListener("click", function (event) {
       event.preventDefault();
       const targetSection = this.dataset.section;
+      if (targetSection === "home") {
+        // Show all sections and reset country filter
+        Object.values(sectionMap).forEach(node => {
+          if (node) node.hidden = false;
+        });
+        selectedCountry = "all";
+        currentPage = 1;
+        menuButtons.forEach(btn => btn.classList.remove("active"));
+        renderRides();
+        renderUploadedGraph();
+        return;
+      }
+      if (targetSection === "cards") {
+        // Show all rides in Cards section, reset country filter
+        setSectionFocusMode("cards");
+        selectedCountry = "all";
+        currentPage = 1;
+        menuButtons.forEach(btn => btn.classList.remove("active"));
+        renderRides();
+        renderUploadedGraph();
+        return;
+      }
       const targetNode = targetSection ? sectionMap[targetSection] : null;
-
       if (!targetNode) {
         return;
       }
-
-      if (targetSection === "contact") {
-        setContactFocusMode(true);
-      } else {
-        setContactFocusMode(false);
-      }
-
+      setSectionFocusMode(targetSection);
       targetNode.scrollIntoView({ behavior: "auto", block: "start" });
     });
   });
