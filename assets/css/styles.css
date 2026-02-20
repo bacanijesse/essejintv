@@ -1,3 +1,38 @@
+/* Mobile-only fixed parallax background workaround */
+.mobile-parallax-bg {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .mobile-parallax-bg {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 60vh;
+    z-index: -1;
+    background-image: linear-gradient(var(--bg-overlay), var(--bg-overlay)), var(--parallax-image);
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center top;
+    pointer-events: none;
+    transition: background-color 0.3s ease;
+  }
+  body {
+    background: none !important;
+    min-height: 60vh;
+  }
+}
+
+@media (max-width: 600px) {
+  .mobile-parallax-bg {
+    height: 40vh;
+  }
+  body {
+    min-height: 40vh;
+  }
+}
 .rides-grid:only-child, .rides-grid:has(.error-message) {
   display: flex;
   flex-direction: column;
@@ -73,9 +108,19 @@ body {
   transition: background-color 0.3s ease;
 }
 
+
 @media (max-width: 900px) {
   body {
     background-attachment: scroll;
+    background-size: 100vw 60vh;
+    min-height: 60vh;
+  }
+}
+
+@media (max-width: 600px) {
+  body {
+    background-size: 100vw 40vh;
+    min-height: 40vh;
   }
 }
 
