@@ -1,0 +1,32 @@
+[
+  {
+    "id": 1,
+    "country": "Taiwan",
+    "cover": "https://placehold.co/600x220?text=Auto+Discovered+Ride",
+    "thumbnail": "https://placehold.co/600x220?text=Auto+Discovered+Ride",
+    "title": "Ride 02_18_2026_16_12",
+    "date": "2026-02-18",
+    "distance": 0,
+    "elevation": 0,
+    "description": "Ride imported from folder 02_18_2026_16_12",
+    "gpxFile": "gpx/02_18_2026_16_12/activity_21904385848.gpx",
+    "youtubeUrl": "https://www.youtube.com/results?search_query=cycling+ride+taiwan",
+    "photos": [],
+    "tags": ["gpx", "imported"]
+  },
+  {
+    "id": 2,
+    "country": "Taiwan",
+    "cover": "https://placehold.co/600x220?text=Auto+Discovered+Ride",
+    "thumbnail": "https://placehold.co/600x220?text=Auto+Discovered+Ride",
+    "title": "Ride 02_18_2026_19_44",
+    "date": "2026-02-18",
+    "distance": 0,
+    "elevation": 0,
+    "description": "Ride imported from folder 02_18_2026_19_44",
+    "gpxFile": "gpx/02_18_2026_19_44/activity_21906513266.gpx",
+    "youtubeUrl": "https://www.youtube.com/results?search_query=cycling+ride+taiwan",
+    "photos": [],
+    "tags": ["gpx", "imported"]
+  }
+]

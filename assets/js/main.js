@@ -1250,7 +1250,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (metricsModal && metricsModal.map) {
           metricsModal.map.invalidateSize();
         }
-      }, 0);
+      }, 200);
     }
   }
 
